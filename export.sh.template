@@ -1,0 +1,4 @@
+#!/bin/sh
+
+export AZURE_OAUTH=false
+export API_ENVPOINT=https://api.example.com/endpoint
