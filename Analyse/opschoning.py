@@ -7,7 +7,8 @@ import seaborn as sns
 sns.set()
 
 
-def inlezen_opschonen_data(): 
+def get_data(): 
+    
     path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data'
     #%% inlezen bestanden:
     # Inkooporders 
@@ -77,10 +78,6 @@ def inlezen_opschonen_data():
         # 5251 unieke project codes!
         df_ioa_t = pd.concat([df_ioa_t, df_ioa[mask]], axis=0)
 
-    # test alle juiste codes gefilterd?
-    df_ioa_t2 = df_ioa[~df_ioa.isin(df_ioa_t['ARTIKEL'].to_list())]
-    df_ioa_t2 = df_ioa_t2.drop_duplicates(subset='ARTIKEL')
-    # df_ioa_t2[['ARTIKEL','ARTIKEL_OMSCHRIJVING']].to_excel('./Data/Artikelen_toegevoegd.xlsx') # hier pas ik vervolgens handmatig een selectie op in Blad1
     codes_extra = pd.read_excel(path + '/Artikelen_toegevoegd_A.xlsx', 'Blad2')
 
     # %% extra codes meenemen of niet? --> geeft groot verschil met dashboard Arend als wel meegenomen
@@ -182,125 +179,59 @@ def inlezen_opschonen_data():
     revisie_temp = revisie.iloc[-1] 
     workflow = workflow.merge(revisie_temp, left_on='BisonNummer', right_on='Projectnummer', how='left') # klopt het dat er veel artikel codes wel in revisie staan, maar niet in workflow???
     workflow.columns = ['Project', 'Gefactureerd totaal', 'Ingeschat', 'Ingekocht', 'Revisie totaal']
+    workflow = workflow.fillna(0)
 
     return workflow, inkoop, revisie 
 
-# def categorize(workflow, inkoop, revisie): 
-#     ## BEREKENING VAN DE BAKJES 
+def categorize(workflow): 
+    '''
+    In deze functie wordt de OHW bepaald en daarna verdeeld over verschillende categoriën. 
+    Als input worden alle projecten die in Workflow staan meegenomen. 
+    Als ouput het dataframe met Projectnummer en categorie en het aantal meters
+    '''
 
-#     workflow['delta_1']=workflow['Gefactureerd totaal'] - workflow['Ingekocht']
+    workflow['delta_1']=workflow['Gefactureerd totaal'] - workflow['Ingekocht']
     
-#     df_OHW = workflow[workflow['delta_1'] < 0]
-#     df_OHW['delta_it']= df_OHW['Ingekocht'] - df_OHW['Gefactureerd Totaal']
-#     df_OHW['detla_ir']= df_OHW['Ingekocht'] - df['Revisie totaal']
+    df_OHW = workflow[workflow['delta_1'] < 0]
+    df_OHW['delta_it']= df_OHW['Ingekocht'] - df_OHW['Gefactureerd totaal']
+    df_OHW['detla_ir']= df_OHW['Ingekocht'] - df_OHW['Revisie totaal']
+    df_OHW['delta_tr']= df_OHW['Gefactureerd totaal'] - df_OHW['Revisie totaal']
+    df_OHW['delta_ii']= df_OHW['Ingekocht'] - df_OHW['Ingeschat']
 
+    df_OHW = df_OHW.fillna(0)
+
+    # verschillende bakken:
+    # bak 1 meer ingekocht dan gefactureerd & (deel revisie gefactureerd klopt niet met totaal gefactureerd) (Mark Beunk trapt op de rem):
+    # niets gefactureerd en ook geen deelrevisies...fout bij invoer TPG?
+    df_OHW.at[((df_OHW['Gefactureerd totaal']== 0) & (df_OHW['delta_tr'] == 0)), 'cat1'] = 1 
     
-#     df_OHW_p['delta_it'] = df_OHW_p['Ingekocht'] - df_OHW_p['Gefactureerd Totaal']
-#     df_OHW_p['delta_ir'] = df_OHW_p['Ingekocht'] - df_OHW_p['Gefactureerd Revisie']
-#     df_OHW_p['delta_tr'] = df_OHW_p['Gefactureerd Totaal'] - \
-#         df_OHW_p['Gefactureerd Revisie']
-#     df_OHW_p['delta_ii'] = df_OHW_p['Ingekocht'] - df_OHW_p['Ingeschat']
+    # niets gefactureerd maar wel een deelrevisie, inkoop meer dan ingeschat...niet doorgezet WF of Mark Beunk rem?
+    df_OHW.at[(df_OHW['Gefactureerd totaal'] == 0) & (df_OHW['delta_tr'] != 0) & (df_OHW['delta_ii'] > 0), 'cat2a'] = 1
+    
+    # niets gefactureerd maar wel een deelrevisie, inkoop minder dan ingeschat...niet doorgezet WF of Mark Beunk rem?
+    df_OHW.at[(df_OHW['Gefactureerd totaal'] == 0) & (df_OHW['delta_tr'] != 0) & (df_OHW['delta_ii'] <= 0), 'cat2b'] = 1
+   
+    # wel gefactureerd en ook gelijk aan deelrevisies...doorvoer naar WF klopt maar te weinig? aannemer, TPG handmatig fout excel
+    df_OHW.at[(df_OHW['Gefactureerd totaal'] != 0) & (df_OHW['delta_tr'] == 0), 'cat3'] = 1
+    
+    # wel gefactureerd maar deels geremd door Mark Beunk? inkoop meer dan ingeschat, dit is te checken kolom gerealiseerd...
+    df_OHW.at[(df_OHW['Gefactureerd totaal'] != 0) & (df_OHW['delta_tr'] < 0) & (df_OHW['delta_ii'] > 0), 'cat4a'] = 1
 
-#     # verschillende bakken:
-#     # bak 1 meer ingekocht dan gefactureerd & (deel revisie gefactureerd klopt niet met totaal gefactureerd) (Mark Beunk trapt op de rem):
-#     # niets gefactureerd en ook geen deelrevisies...fout bij invoer TPG?
-#     df_OHW_p_b1 = df_OHW_p[(df_OHW_p['Gefactureerd Totaal']
-#                             == 0) & (df_OHW_p['delta_tr'] == 0)]
-#     # niets gefactureerd maar wel een deelrevisie, inkoop meer dan ingeschat...niet doorgezet WF of Mark Beunk rem?
-#     df_OHW_p_b2a = df_OHW_p[(df_OHW_p['Gefactureerd Totaal'] == 0) & (
-#         df_OHW_p['delta_tr'] != 0) & (df_OHW_p['delta_ii'] > 0)]
-#     # niets gefactureerd maar wel een deelrevisie, inkoop minder dan ingeschat...niet doorgezet WF of Mark Beunk rem?
-#     df_OHW_p_b2b = df_OHW_p[(df_OHW_p['Gefactureerd Totaal'] == 0) & (
-#         df_OHW_p['delta_tr'] != 0) & (df_OHW_p['delta_ii'] < 0)]
-#     # wel gefactureerd en ook gelijk aan deelrevisies...doorvoer naar WF klopt maar te weinig? aannemer, TPG handmatig fout excel
-#     df_OHW_p_b3 = df_OHW_p[(df_OHW_p['Gefactureerd Totaal']
-#                             != 0) & (df_OHW_p['delta_tr'] == 0)]
-#     # wel gefactureerd maar deels geremd door Mark Beunk? inkoop meer dan ingeschat, dit is te checken kolom gerealiseerd...
-#     df_OHW_p_b4a = df_OHW_p[(df_OHW_p['Gefactureerd Totaal'] != 0) & (
-#         df_OHW_p['delta_tr'] < 0) & (df_OHW_p['delta_ii'] > 0)]
-#     # wel gefactureerd maar deels geremd door Mark Beunk? inkoop minder dan ingeschat, dit is te checken kolom gerealiseerd...
-#     df_OHW_p_b4b = df_OHW_p[(df_OHW_p['Gefactureerd Totaal'] != 0) & (
-#         df_OHW_p['delta_tr'] < 0) & (df_OHW_p['delta_ii'] < 0)]
-#     # wel gefactureerd en meer dan deelrevisies? dit mag niet kunnen...fout in workflow of TPG?
-#     df_OHW_p_b5 = df_OHW_p[(df_OHW_p['Gefactureerd Totaal']
-#                             != 0) & (df_OHW_p['delta_tr'] > 0)]
+    # wel gefactureerd maar deels geremd door Mark Beunk? inkoop minder dan ingeschat, dit is te checken kolom gerealiseerd...
+    df_OHW.at[(df_OHW['Gefactureerd totaal'] != 0) & (df_OHW['delta_tr'] < 0) & (df_OHW['delta_ii'] <= 0), 'cat4b']= 1
+    
+    # wel gefactureerd en meer dan deelrevisies? dit mag niet kunnen...fout in workflow of TPG?
+    df_OHW.at[(df_OHW['Gefactureerd totaal']!= 0) & (df_OHW['delta_tr'] > 0), 'cat5']= 1
 
-#     print(str(len(df_OHW_p)) + ' -- ' + str(len(df_OHW_p_b1)+len(df_OHW_p_b2a) +
-#                                             len(df_OHW_p_b2b)+len(+df_OHW_p_b3)+len(df_OHW_p_b4a)+len(df_OHW_p_b4b)+len(df_OHW_p_b5)))
+    df_OHW = df_OHW.fillna(0)
 
-#     bakjes_perc = [len(df_OHW_p_b1)/len(df_OHW_p), len(df_OHW_p_b2a)/len(df_OHW_p), len(df_OHW_p_b2b)/len(df_OHW_p), len(df_OHW_p_b3) /
-#                 len(df_OHW_p), len(df_OHW_p_b4a)/len(df_OHW_p), len(df_OHW_p_b4b)/len(df_OHW_p), len(df_OHW_p_b5)/len(df_OHW_p)]
-#     bakjes_percm = [df_OHW_p_b1['delta_it'].sum()/df_OHW_p['delta_it'].sum(), df_OHW_p_b2a['delta_it'].sum()/df_OHW_p['delta_it'].sum(), df_OHW_p_b2b['delta_it'].sum()/df_OHW_p['delta_it'].sum(), df_OHW_p_b3['delta_it'].sum()/df_OHW_p['delta_it'].sum(),
-#                     df_OHW_p_b4a['delta_it'].sum()/df_OHW_p['delta_it'].sum(), df_OHW_p_b4b['delta_it'].sum()/df_OHW_p['delta_it'].sum(), df_OHW_p_b5['delta_it'].sum()/df_OHW_p['delta_it'].sum()]
-#     bakjes_desc = ['b1: niet gefactureerd, geen deelrevisie \n MELDEN BIJ TPG-FOUT INVOER',
-#                 'b2a: niet gefactureerd, wel deelrevisie, inkoop meer dan ingeschat \n MEERWERK KPN|MARK BEUNK CONTROLE|KLOPT REVISIE WEL?',
-#                 'b2b: niet gefactureerd, wel deelrevisie, inkoop minder dan ingeschat \n KLOPT REVISIE WEL?',
-#                 'b3: wel gefactureerd, gelijk aan deelrevisie \n REVISIE LOOPT ACHTER OP INKOOP|KLOPT REVISIE WEL?',
-#                 'b4a: wel gefactureerd, deelrevisie hoger, inkoop meer dan ingeschat \n MEERWERK KPN|MARK BEUNK CONTROLE|KLOPT REVISIE WEL?',
-#                 'b4b: wel gefactureerd, deelrevisie hoger, inkoop minder dan ingeschat \n KLOPT REVISIE WEL?',
-#                 'b5: wel gefactureerd, deelrevisie lager \n FOUT IN WORKFLOW?']
+    return df_OHW
 
-#     fig1, axes1 = plt.subplots(figsize=(10, 10))
-#     axes1.pie(bakjes_perc, labels=bakjes_desc, autopct='%1.2f', startangle=90)
-#     axes1.axis('equal')
-#     axes1.set_title(
-#         'Alle projecten die vallen onder OHW: inkoop > gefactureerd, per project (totaal: ' + str(len(df_OHW_p)) + ')')
+# def get_extra_werk(inkoop):
+    
+#     df_codes_ew = pd.read_excel(path + '/Codes_extrawerk.xlsx').astype('str')
+#     df_codes_ew.drop(index=[4, 5, 6], inplace=True)
+#     df_codes_ew.rename(columns={'Unnamed: 0': 'ARTIKEL'}, inplace=True)
 
-#     fig2, axes2 = plt.subplots(figsize=(10, 10))
-#     axes2.pie(bakjes_percm, labels=bakjes_desc, autopct='%1.2f', startangle=90)
-#     axes2.axis('equal')
-#     axes2.set_title('Alle projecten die vallen onder OHW: inkoop > gefactureerd, per aantal meters (totaal: ' +
-#                     str(df_OHW_p['delta_it'].sum()) + ')')
-
-#     # vervolg stappen: 1) check invoer TPG via excel zips... 2) automatisch inlezen dwg files... 3) toevoegen kolom gerealiseerd...om revisie-gerealiseerd-rem Mark checken...
-#     # SMART acties vaststellen per bakje!
-
-#     # %% check op meerwerk
-#     df_dat_mw = df_d  # nieuw dataframe met alle projecten
-#     df_t = pd.DataFrame()
-#     acodes = df_codes_ew['Code'].iloc[0:4].astype('str').to_list()
-#     for i in acodes:
-#         mask = df_dat_mw['ARTIKEL'].str.contains(
-#             i)  # ombouwen naar afgeleid artikel
-#         df_t = pd.concat([df_t, df_dat_mw[mask]], axis=0)
-#     df_dat_mw = df_t  # project codes met meerwerk geul codes!
-#     print('Totaal aantal meter meerwerk over alle projecten: ' +
-#         str(df_dat_mw.groupby('PROJECT').agg({'Ontvangen': 'sum'}).sum()))
-#     print(df_dat_mw['PROJECT'].unique())  # projecten met meerwerk!
-#     # project codes met ook DP codes, dit mag niet voorkomen, anders dubbel gerekend!
-#     df_dat_mw = df_dat_mw[df_dat_mw['ARTIKEL'].isin(
-#         df_codes_ew['ARTIKEL'].iloc[4:].astype('str').to_list())]
-#     # komt dus niet voor...
-#     print('Projecten met meerwerk: ' + df_dat_mw['PROJECT'])
-
-#     # %% per bakje lijst met meeste meters en meest recente data
-#     df_OHW_p_b1.sort_values(by=['LEVERDATUM_ONTVANGST'], ascending=False).head(15)
-#     # df_OHW_p_b1.describe()
-
-#     # df_OHW_p_b2a.sort_values(by=['LEVERDATUM_ONTVANGST'],ascending=False).head(15)
-#     # df_OHW_p_b2a.describe()
-
-#     # df_OHW_p_b2b.sort_values(by=['LEVERDATUM_ONTVANGST'],ascending=False).head(15)
-#     # df_OHW_p_b2b.describe()
-
-#     # df_OHW_p_b3.sort_values(by=['LEVERDATUM_ONTVANGST'],ascending=False).head(15)
-#     # df_OHW_p_b3.describe()
-
-#     # df_OHW_p_b4a.sort_values(by=['LEVERDATUM_ONTVANGST'],ascending=False).head(15)
-#     # df_OHW_p_b4a.describe()
-
-#     # df_OHW_p_b4b.sort_values(by=['LEVERDATUM_ONTVANGST'],ascending=False).head(15)
-#     # df_OHW_p_b4b.describe()
-
-#     # df_OHW_p_b5.sort_values(by=['LEVERDATUM_ONTVANGST'],ascending=False).head(15)
-#     # df_OHW_p_b5.describe()
-
-#     # %% Vergelijking met dashboard Arend:
-#     print('Aantal projecten: ' +
-#         str(len(df_d.groupby(['PROJECT']).agg({'Gefactureerd Totaal': 'first'}))))
-#     ing = df_d.groupby(['PROJECT', 'INKOOPORDER', 'ARTIKEL']).agg(
-#         {'Ontvangen': 'first'}).groupby(['PROJECT']).agg({'Ontvangen': 'sum'}).sum()
-#     gef = df_d.groupby(['PROJECT']).agg({'Gefactureerd Totaal': 'first'}).sum()
-#     print('Verschil ingekocht - gefactureerd in meters: ' + str(ing[0]-gef[0]))
-
-#     # %%
+#     # Bepaal of iedere regel 
+#     inkoop['extra werk'] = inkoop['ARTIKEL'].contains()
