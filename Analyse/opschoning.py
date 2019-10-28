@@ -227,11 +227,14 @@ def categorize(workflow):
 
     return df_OHW
 
-# def get_extra_werk(inkoop):
-    
+# def get_extra_werk(inkoop, workflow):
+
+#     path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data'
 #     df_codes_ew = pd.read_excel(path + '/Codes_extrawerk.xlsx').astype('str')
 #     df_codes_ew.drop(index=[4, 5, 6], inplace=True)
 #     df_codes_ew.rename(columns={'Unnamed: 0': 'ARTIKEL'}, inplace=True)
 
-#     # Bepaal of iedere regel 
-#     inkoop['extra werk'] = inkoop['ARTIKEL'].contains()
+#     # Bepaal of iedere regel
+#     temp = pd.DataFrame([]) 
+#     for i in df_codes_ew.iloc[:4]:
+#         inkoop['extra werk'] = inkoop['ARTIKEL'].contains(i)
