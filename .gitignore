@@ -1,11 +1,4 @@
-<<<<<<< HEAD
 export.sh
 .DS_Store
 __pycache__
-=======
 settings.json
-venv
-*.pyc
-.DS_Store
-.env
->>>>>>> develop
