@@ -7,8 +7,9 @@ import seaborn as sns
 sns.set()
 
 
+
 def get_data(): 
-    
+
     path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data'
     #%% inlezen bestanden:
     # Inkooporders 
@@ -175,11 +176,17 @@ def get_data():
     inkoop_zonder_DP = inkoop_zonder_DP.groupby('PROJECT').agg({'Ontvangen':'sum'})
     workflow = workflow.merge(inkoop_zonder_DP, left_on='BisonNummer', right_on='PROJECT', how = 'left').fillna(0)
 
-    # Aanvulen van workflow met revisie
+    # Aanvulen van workflow met revisie en delta1
     revisie_temp = revisie.iloc[-1] 
     workflow = workflow.merge(revisie_temp, left_on='BisonNummer', right_on='Projectnummer', how='left') # klopt het dat er veel artikel codes wel in revisie staan, maar niet in workflow???
     workflow.columns = ['Project', 'Gefactureerd totaal', 'Ingeschat', 'Ingekocht', 'Revisie totaal']
     workflow = workflow.fillna(0)
+    workflow['delta_1']=workflow['Gefactureerd totaal'] - workflow['Ingekocht']
+
+    # Revisie aanvullen met 'lege projecten'
+    temp_projecten = set(workflow['Project'].unique()) - set(revisie.columns)
+    temp = pd.DataFrame(index=revisie.index,columns=list(temp_projecten)).fillna(0)
+    revisie = pd.concat([revisie,temp],axis=1)
 
     return workflow, inkoop, revisie 
 
@@ -189,8 +196,6 @@ def categorize(workflow):
     Als input worden alle projecten die in Workflow staan meegenomen. 
     Als ouput het dataframe met Projectnummer en categorie en het aantal meters
     '''
-
-    workflow['delta_1']=workflow['Gefactureerd totaal'] - workflow['Ingekocht']
     
     df_OHW = workflow[workflow['delta_1'] < 0]
     df_OHW['delta_it']= df_OHW['Ingekocht'] - df_OHW['Gefactureerd totaal']
@@ -203,38 +208,63 @@ def categorize(workflow):
     # verschillende bakken:
     # bak 1 meer ingekocht dan gefactureerd & (deel revisie gefactureerd klopt niet met totaal gefactureerd) (Mark Beunk trapt op de rem):
     # niets gefactureerd en ook geen deelrevisies...fout bij invoer TPG?
-    df_OHW.at[((df_OHW['Gefactureerd totaal']== 0) & (df_OHW['delta_tr'] == 0)), 'cat1'] = 1 
+    df_OHW.at[((df_OHW['Gefactureerd totaal']== 0) & (df_OHW['delta_tr'] == 0)), 'Categorie'] = 'Cat1' 
     
     # niets gefactureerd maar wel een deelrevisie, inkoop meer dan ingeschat...niet doorgezet WF of Mark Beunk rem?
-    df_OHW.at[(df_OHW['Gefactureerd totaal'] == 0) & (df_OHW['delta_tr'] != 0) & (df_OHW['delta_ii'] > 0), 'cat2a'] = 1
+    df_OHW.at[(df_OHW['Gefactureerd totaal'] == 0) & (df_OHW['delta_tr'] != 0) & (df_OHW['delta_ii'] > 0), 'Categorie'] = 'Cat2a'
     
     # niets gefactureerd maar wel een deelrevisie, inkoop minder dan ingeschat...niet doorgezet WF of Mark Beunk rem?
-    df_OHW.at[(df_OHW['Gefactureerd totaal'] == 0) & (df_OHW['delta_tr'] != 0) & (df_OHW['delta_ii'] <= 0), 'cat2b'] = 1
+    df_OHW.at[(df_OHW['Gefactureerd totaal'] == 0) & (df_OHW['delta_tr'] != 0) & (df_OHW['delta_ii'] <= 0), 'Categorie'] = 'Cat2b'
    
     # wel gefactureerd en ook gelijk aan deelrevisies...doorvoer naar WF klopt maar te weinig? aannemer, TPG handmatig fout excel
-    df_OHW.at[(df_OHW['Gefactureerd totaal'] != 0) & (df_OHW['delta_tr'] == 0), 'cat3'] = 1
+    df_OHW.at[(df_OHW['Gefactureerd totaal'] != 0) & (df_OHW['delta_tr'] == 0), 'Categorie'] = 'Cat3'
     
     # wel gefactureerd maar deels geremd door Mark Beunk? inkoop meer dan ingeschat, dit is te checken kolom gerealiseerd...
-    df_OHW.at[(df_OHW['Gefactureerd totaal'] != 0) & (df_OHW['delta_tr'] < 0) & (df_OHW['delta_ii'] > 0), 'cat4a'] = 1
+    df_OHW.at[(df_OHW['Gefactureerd totaal'] != 0) & (df_OHW['delta_tr'] < 0) & (df_OHW['delta_ii'] > 0), 'Categorie'] = 'Cat4a'
 
     # wel gefactureerd maar deels geremd door Mark Beunk? inkoop minder dan ingeschat, dit is te checken kolom gerealiseerd...
-    df_OHW.at[(df_OHW['Gefactureerd totaal'] != 0) & (df_OHW['delta_tr'] < 0) & (df_OHW['delta_ii'] <= 0), 'cat4b']= 1
+    df_OHW.at[(df_OHW['Gefactureerd totaal'] != 0) & (df_OHW['delta_tr'] < 0) & (df_OHW['delta_ii'] <= 0), 'Categorie']= 'Cat4b'
     
     # wel gefactureerd en meer dan deelrevisies? dit mag niet kunnen...fout in workflow of TPG?
-    df_OHW.at[(df_OHW['Gefactureerd totaal']!= 0) & (df_OHW['delta_tr'] > 0), 'cat5']= 1
+    df_OHW.at[(df_OHW['Gefactureerd totaal']!= 0) & (df_OHW['delta_tr'] > 0), 'Categorie']= 'Cat5'
 
     df_OHW = df_OHW.fillna(0)
 
     return df_OHW
 
-# def get_extra_werk(inkoop, workflow):
+def get_extra_werk(inkoop, df_OHW):
 
-#     path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data'
-#     df_codes_ew = pd.read_excel(path + '/Codes_extrawerk.xlsx').astype('str')
-#     df_codes_ew.drop(index=[4, 5, 6], inplace=True)
-#     df_codes_ew.rename(columns={'Unnamed: 0': 'ARTIKEL'}, inplace=True)
 
-#     # Bepaal of iedere regel
-#     temp = pd.DataFrame([]) 
-#     for i in df_codes_ew.iloc[:4]:
-#         inkoop['extra werk'] = inkoop['ARTIKEL'].contains(i)
+    # inlezen extra werk codes en DP codes
+    path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data'
+    df_codes_ew = pd.read_excel(path + '/Codes_extrawerk.xlsx').astype('str')
+    df_codes_ew.drop(index=[4, 5, 6], inplace=True)
+    df_codes_ew.rename(columns={'Unnamed: 0': 'ARTIKEL'}, inplace=True)
+
+    # Bepaal of iedere regel een 'extra werk' code bevat
+    for i in df_codes_ew.iloc[:4]['Code']:
+        mask = inkoop['ARTIKEL'].str.contains(i)
+        inkoop.at[mask, 'Extra_werk'] = 1
+    inkoop['Extra_werk'] = inkoop['Extra_werk'].fillna(0)
+
+    # Bepaal of iedere regel een 'DP_code' bevat
+    for i in df_codes_ew.iloc[4:]['Code']:
+        mask = inkoop['ARTIKEL'].str.contains(i)
+        inkoop.at[mask, 'DP_code'] = 1
+    inkoop['DP_code'] = inkoop['DP_code'].fillna(0)
+
+    # filter alle extra werk en dp codes 
+    alle_codes = inkoop[((inkoop['Extra_werk']==1) | (inkoop['DP_code'] ==1))]
+    # Eerst groeperen op inkooporder, daarna op project 
+    alle_codes = alle_codes.groupby(['INKOOPORDER','PROJECT']).agg({'Extra_werk':'sum','DP_code':'sum','Ontvangen':'sum'})
+    # Als er een code extra werk op een inkooporder aanwezig is, en er staat geen DP_code op de inkooporder, dan is het extra werk 
+    extra_werk = alle_codes[(alle_codes['Extra_werk']>0) & (alle_codes['DP_code']==0)]
+    extra_werk_m = sum(extra_werk['Ontvangen'])
+
+    temp = extra_werk.copy()
+    temp = temp.groupby('PROJECT').agg({'Ontvangen':'sum'}).rename(columns={'Ontvangen':'Meerwerk'})
+    df_OHW = df_OHW.merge(temp, left_on='Project', right_on='PROJECT', how='left')
+    df_OHW = df_OHW.fillna(0)
+
+    return alle_codes, extra_werk, extra_werk_m, df_OHW
+
