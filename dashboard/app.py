@@ -675,9 +675,10 @@ def make_count_figure(dummy):
     ingeschat = df_OHW['Ingeschat'].sum()
     gefactureerd = df_OHW['Gefactureerd totaal'].sum()
 
-    inkoop = inkoop['Ontvangen'].cumsum()#.asfreq('D', 'ffill')
-    revisie = revisie.sum(axis=1)#.asfreq('D', 'ffill')
-    # delta_1_t = revisie[inkoop.index[0]:inkoop.index[-1]] - inkoop
+    inkoop = inkoop.groupby('LEVERDATUM_ONTVANGST').agg({'Ontvangen':'sum'})
+    inkoop = inkoop['Ontvangen'].cumsum().asfreq('D', 'ffill')
+    revisie = revisie.sum(axis=1).asfreq('D', 'ffill')
+    delta_1_t = revisie[inkoop.index[0]:inkoop.index[-1]] - inkoop
     
 
     # Totaal aantal projecten:
@@ -720,13 +721,24 @@ def make_count_figure(dummy):
         ),
     ]
 
+    data2 = [
+        dict(
+            type="line",
+            x=delta_1_t.index,
+            y=-delta_1_t,
+            name="OHW",
+            opacity=0.5,
+            hoverinfo="skip",
+        ),
+    ]
+
     layout_count["title"] = ""
     layout_count["dragmode"] = "select"
     layout_count["showlegend"] = True
     layout_count["autosize"] = True
 
     figure1 = dict(data=data1, layout=layout_count)
-    figure2 = dict(data=data1, layout=layout_count)
+    figure2 = dict(data=data2, layout=layout_count)
     return [figure1, figure2,[str(nproj), str(nOHW), str(overfacturatie), str(totOHW)]]
 
 
