@@ -227,14 +227,32 @@ def categorize(workflow):
 
     return df_OHW
 
-# def get_extra_werk(inkoop, workflow):
+def get_extra_werk(inkoop):
 
-#     path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data'
-#     df_codes_ew = pd.read_excel(path + '/Codes_extrawerk.xlsx').astype('str')
-#     df_codes_ew.drop(index=[4, 5, 6], inplace=True)
-#     df_codes_ew.rename(columns={'Unnamed: 0': 'ARTIKEL'}, inplace=True)
+    # inlezen extra werk codes en DP codes
+    path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data'
+    df_codes_ew = pd.read_excel(path + '/Codes_extrawerk.xlsx').astype('str')
+    df_codes_ew.drop(index=[4, 5, 6], inplace=True)
+    df_codes_ew.rename(columns={'Unnamed: 0': 'ARTIKEL'}, inplace=True)
 
-#     # Bepaal of iedere regel
-#     temp = pd.DataFrame([]) 
-#     for i in df_codes_ew.iloc[:4]:
-#         inkoop['extra werk'] = inkoop['ARTIKEL'].contains(i)
+    # Bepaal of iedere regel een 'extra werk' code bevat
+    for i in df_codes_ew.iloc[:4]['Code']:
+        mask = inkoop['ARTIKEL'].str.contains(i)
+        inkoop.at[mask, 'Extra_werk'] = 1
+    inkoop['Extra_werk'] = inkoop['Extra_werk'].fillna(0)
+
+    # Bepaal of iedere regel een 'DP_code' bevat
+    for i in df_codes_ew.iloc[4:]['Code']:
+        mask = inkoop['ARTIKEL'].str.contains(i)
+        inkoop.at[mask, 'DP_code'] = 1
+    inkoop['DP_code'] = inkoop['DP_code'].fillna(0)
+
+    # filter alle extra werk en dp codes 
+    alle_codes = inkoop[((inkoop['Extra_werk']==1) | (inkoop['DP_code'] ==1))]
+    # Eerst groeperen op inkooporder, daarna op project 
+    alle_codes = alle_codes.groupby(['INKOOPORDER','PROJECT']).agg({'Extra_werk':'sum','DP_code':'sum','Ontvangen':'sum'})
+    # Als er een code extra werk op een inkooporder aanwezig is, en er staat geen DP_code op de inkooporder, dan is het extra werk 
+    extra_werk = alle_codes[(alle_codes['Extra_werk']>0) & (alle_codes['DP_code']==0)]
+    extra_werk_m = sum(extra_werk['Ontvangen'])
+
+    return alle_codes, extra_werk, extra_werk_m,
