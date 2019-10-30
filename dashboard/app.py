@@ -63,34 +63,6 @@ if AZURE_OAUTH:
         authentication_config['required_scopes']
     )
 
-# # Create controls
-# county_options = [
-#     {"label": str(COUNTIES[county]), "value": str(county)} for county in COUNTIES
-# ]
-
-# well_status_options = [
-#     {"label": str(WELL_STATUSES[well_status]), "value": str(well_status)}
-#     for well_status in WELL_STATUSES
-# ]
-
-# well_type_options = [
-#     {"label": str(WELL_TYPES[well_type]), "value": str(well_type)}
-#     for well_type in WELL_TYPES
-# ]
-
-
-# # Load data
-# df = pd.read_csv(DATA_PATH.joinpath("wellspublic.csv"), low_memory=False)
-# df["Date_Well_Completed"] = pd.to_datetime(df["Date_Well_Completed"])
-# df = df[df["Date_Well_Completed"] > dt.datetime(1960, 1, 1)]
-
-# trim = df[["API_WellNo", "Well_Type", "Well_Name"]]
-# trim.index = trim["API_WellNo"]
-# dataset = trim.to_dict(orient="index")
-
-# points = pickle.load(open(DATA_PATH.joinpath("points.pkl"), "rb"))
-
-
 # Create global chart template
 mapbox_access_token = "pk.eyJ1IjoiamFja2x1byIsImEiOiJjajNlcnh3MzEwMHZtMzNueGw3NWw5ZXF5In0.fk8k06T96Ml9CLGgKmk81w"
 
@@ -157,6 +129,21 @@ app.layout = html.Div(
             style={"margin-bottom": "25px"},
         ),
         html.Div(
+            [
+                html.Div(
+                    [
+                        html.Div(
+                            [html.H6(id="wellText0"), html.P("Eerst analyseren we de totale set van projecten in workflow t.o.v. geulen graven:")],
+                            id="wells0",
+                            className="pretty_container 1 columns",
+                        ),
+                    ],
+                    id="info-container0",
+                    className="row container-display",
+                ),
+            ],
+        ),
+        html.Div(
                     [
                         html.Div(
                             [
@@ -199,6 +186,21 @@ app.layout = html.Div(
             ],
             className="row flex-display",
             # style={"margin-bottom": "50px"}, 
+        ),
+        html.Div(
+            [
+                html.Div(
+                    [
+                        html.Div(
+                            [html.H6(id="wellText01"), html.P("Vervolgens kan deze set van projecten onderzocht worden op basis van verschillende categorieen, oorzaak OHW:")],
+                            id="wells01",
+                            className="pretty_container 1 columns",
+                        ),
+                    ],
+                    id="info-container01",
+                    className="row container-display",
+                ),
+            ],
         ),
         html.Div(
             [
@@ -454,7 +456,17 @@ def make_aggregate_figure(selected_data):
         ),
     ]
 
-    layout_aggregate["title"] = "Categorie " + cat
+    bakjes_info = [
+        'gefactureerd=0, deelrevisie=0', 
+        'gefactureerd=0, revisie>0, ingekocht > ingeschat',
+        'gefactureerd=0, revisie>0, ingekocht < ingeschat', 
+        'gefactureerd = revisie', 
+        'gefactureerd < revisie, ingekocht > ingeschat', 
+        'gefactureerd > revisie, ingekocht < ingeschat', 
+        'gefactureerd > revisie'
+    ]
+
+    layout_aggregate["title"] = "Categorie " + cat + ':<br>' + ' (' + bakjes_info[int(cat[1])-1] + ')'
     layout_aggregate["dragmode"] = "select"
     layout_aggregate["showlegend"] = True
     layout_aggregate["autosize"] = True
