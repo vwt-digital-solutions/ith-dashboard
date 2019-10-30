@@ -15,6 +15,11 @@ import dash_html_components as html
 from google.cloud import kms_v1
 from dash.dependencies import Input, Output, State, ClientsideFunction
 
+# Download button 
+import io
+from flask import send_file
+
+
 # Multi-dropdown options
 from controls import COUNTIES, WELL_STATUSES, WELL_TYPES, WELL_COLORS
 
@@ -117,10 +122,10 @@ app.layout = html.Div(
                 html.Div(
                     [
                         html.Img(
-                            src=app.get_asset_url("logoVQD.eps"),
-                            id="plotly-image",
+                            src=app.get_asset_url("vqd.png"),
+                            id="vqd-image",
                             style={
-                                "height": "60px",
+                                "height": "100px",
                                 "width": "auto",
                                 "margin-bottom": "25px",
                             },
@@ -147,13 +152,17 @@ app.layout = html.Div(
                 ),
                 # html.Div(
                 #     [
-                #         html.A(
-                #             html.Button("Learn More", id="learn-more-button"),
-                #             href="https://plot.ly/dash/pricing/",
+                #         html.Img(
+                #             src=app.get_asset_url("vwt.png"),
+                #             id="vwt-image",
+                #             style={
+                #                 "height": "100px",
+                #                 "width": "auto",
+                #                 "margin-bottom": "25px",
+                #             },
                 #         )
                 #     ],
                 #     className="one-third column",
-                #     id="button",
                 # ),
             ],
             id="header",
@@ -296,13 +305,51 @@ app.layout = html.Div(
             ],
             # className="row flex-display",
         ),
+        html.Div(
+        html.A('download excel', id='my-link', href='/download_excel')
+        ),
     ],
     id="mainContainer",
     style={"display": "flex", "flex-direction": "column"},
 )
 
 
-# Helper functions
+# Download function
+@app.callback(
+    Output('my-link','href'),
+    [
+        Input('pie_graph', 'clickData')
+    ],
+)
+def update_link(clickData):
+
+    if clickData == None:
+        cat = 'b1'
+    else:
+        cat = clickData.get('points')[0].get('label')
+    return '/download_excel?categorie={}'.format(cat)
+
+@app.server.route('/download_excel')
+def download_excel():
+    #Create DF
+    cat = flask.request.args.get('categorie')
+    cat_lookup = {'b1':'Cat1','b2':'Cat2a','b3':'Cat2b','b4':'Cat3','b5':'Cat4a','b6':'Cat4b','b7':'Cat5'}
+    df_OHW = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/df_OHW.pkl')
+    # Alle projecten met OHW
+    projecten = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]
+    df = projecten
+
+    #Convert DF
+    strIO = io.BytesIO()
+    excel_writer = pd.ExcelWriter(strIO, engine="xlsxwriter")
+    df.to_excel(excel_writer, sheet_name="sheet1")
+    excel_writer.save()
+    excel_data = strIO.getvalue()
+    strIO.seek(0)
+
+    return send_file(strIO,
+                     attachment_filename='test.xlsx',
+                     as_attachment=True)
 
 
 # Create callbacks
