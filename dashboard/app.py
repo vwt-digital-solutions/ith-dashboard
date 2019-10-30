@@ -248,7 +248,43 @@ app.layout = html.Div(
             className="row flex-display",
         ),
         html.Div(
-        html.A('download excel', id='my-link', href='/download_excel')
+            [
+                html.Button(
+                    html.A('download excel', id='my-link', href='/download_excel'),
+                    style={
+                    'background-color': '#f9f9f9',  
+                    # # 'color': "#339fcd",
+                    # 'border-radius': '8px',
+                    # 'display': 'inline-block',
+                    # 'padding': '7px',
+                    # 'text-align': 'center',
+                    # 'margin-top': '10px',
+                    # 'margin-bottom': '10px',
+                    # 'margin-left': '10px',
+                    # 'margin-right': '10px',
+                    },
+                ),
+                html.Button(
+                    'Uitleg categorieën',
+                    id = 'uitleg_cat',
+                    style={
+                    'background-color': '#f9f9f9',  
+                    # # 'color': "#339fcd",
+                    # 'border-radius': '8px',
+                    # 'display': 'inline-block',
+                    # 'padding': '7px',
+                    # 'text-align': 'center',
+                    # 'margin-top': '10px',
+                    # 'margin-bottom': '10px',
+                    # 'margin-left': '10px',
+                    # 'margin-right': '10px',
+                    },
+                )
+            ],
+            style={
+                'margin-left': '13px'
+            },
+            # className= "pretty_container"
         ),
     ],
     id="mainContainer",
@@ -279,7 +315,7 @@ def download_excel():
     df_OHW = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/df_OHW.pkl')
     # Alle projecten met OHW
     projecten = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]
-    df = projecten
+    df = projecten[['Project','Gefactureerd totaal', 'Ingeschat', 'Ingekocht','Revisie totaal','Meerwerk', 'Categorie']]
 
     #Convert DF
     strIO = io.BytesIO()
@@ -436,13 +472,15 @@ def make_pie_figure(dummy):
     m_b = df_OHW.groupby('Categorie').agg({'delta_1':'sum'})
     p_b = df_OHW.groupby(['Categorie','Project']).agg({'delta_1':'sum'})
 
-    bakjes_info = ['Er is niks gefactureerd, en de laatste deelrevisie staat op 0; (mogelijk) doorvoer van TPG loopt achter, koppeling checken', 
-                   'Er is niks gefactureerd, er is weel (deel)revisie aanwezig én er is al meer ingekocht dan ingeschat; mits invoer TPG klopt, moet hier (mogelijk) meerwerk worden aangevraagd',
-                   'Er is niks gefactureerd, er is weel (deel)revisie aanwezig én er is al minder ingekocht dan ingeschat; mits de invoer TPG klot, kan dit gefactureerd worden', 
-                   'Facturatie is gelijk aan de revisie; (mogelijk) doorvoer van TPG loopt achter, koppeling checken', 
-                   'Er is minder gefactureerd dan de revisie én er is al meer ingekocht dan ingeschat; mits de invoer TPG klopt, moet hier (mogelijk) meerwerk worden aangevraagd', 
-                   'Er is minder gefactureerd dan de revisie én er is minder ingekocht dan ingeschat; mits de invoer TPG klopt, kan dit gefactureerd worden', 
-                   'Er is meer gefactureerd dan de revisie; Wat kan hier aan de hand zijn? Er is alsnog meer ingekocht'] 
+    bakjes_info = [
+        'gefactureerd=0, deelrevisie=0', 
+        'gefactureerd=0, revisie>0, ingekocht > ingeschat',
+        'gefactureerd=0, revisie>0, ingekocht < ingeschat', 
+        'gefactureerd = revisie', 
+        'gefactureerd < revisie, ingekocht > ingeschat', 
+        'gefactureerd > revisie, ingekocht < ingeschat', 
+        'gefactureerd > revisie,'
+    ] 
 
     data = [
         dict(
