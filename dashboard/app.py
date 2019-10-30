@@ -176,7 +176,7 @@ app.layout = html.Div(
                                     className="mini_container",
                                 ),
                                 html.Div(
-                                    [html.H6(id="waterText"), html.P("Totaal aantal meter OHW")],
+                                    [html.H6(id="waterText"), html.P("Totaal aantal meter OHW (op basis van deelrevisies)")],
                                     id="water",
                                     className="mini_container",
                                 ),
@@ -209,21 +209,21 @@ app.layout = html.Div(
                             id="wells2",
                             className="mini_container",
                         ),
-                        # html.Div(
-                        #     [html.H6(id="gasText2"), html.P("Aantal projecten met OHW")],
-                        #     id="gas2",
-                        #     className="mini_container",
-                        # ),
-                        # html.Div(
-                        #     [html.H6(id="oilText2"), html.P("Aantal projecten met overfacturatie")],
-                        #     id="oil2",
-                        #     className="mini_container",
-                        # ),
-                        # html.Div(
-                        #     [html.H6(id="waterText2"), html.P("Totaal aantal meter OHW")],
-                        #     id="water2",
-                        #     className="mini_container",
-                        # ),
+                        html.Div(
+                            [html.H6(id="gasText2"), html.P("Aantal projecten in deze categorie")],
+                            id="gas2",
+                            className="mini_container",
+                        ),
+                        html.Div(
+                            [html.H6(id="oilText2"), html.P("Totaal aantal meters in deze categorie")],
+                            id="oil2",
+                            className="mini_container",
+                        ),
+                        html.Div(
+                            [html.H6(id="waterText2"), html.P("Totaal aantal meters OHW  (op basis van deelrevisies)")],
+                            id="water2",
+                            className="mini_container",
+                        ),
                     ],
                     id="info-container2",
                     className="row container-display",
@@ -308,12 +308,16 @@ app.clientside_callback(
         Output("oilText", "children"),
         Output("waterText", "children"),
         Output("wellText2", "children"),
+        Output("gasText2", "children"),
+        Output("oilText2", "children"),
+        Output("waterText2", "children"),
     ],
     [Input("aggregate_data", "data"),
     Input("aggregate_data2", "data")],
 )
 def update_text(data1, data2):
-    return data1[0] + " projecten", data1[1] + " projecten", data1[2] + " projecten", data1[3] + " meters", data2[0] + " meters"
+    return data1[0] + " projecten", data1[1] + " projecten", data1[2] + " projecten", data1[3] + " meters", \
+           data2[0] + " meters", data2[1] + " projecten", data2[2] + " meters", data2[3] + " meters" 
 
 # Selectors, main graph -> aggregate graph
 @app.callback(
@@ -358,6 +362,14 @@ def make_aggregate_figure(selected_data):
     revisie = revisie.sum(axis=1).asfreq('D', 'ffill')
     delta_1_t = revisie[inkoop.index[0]:inkoop.index[-1]] - inkoop
 
+    # Totaal aantal projecten:
+    nproj = len(projecten)
+    # Nr projecten met negatieve OHW:
+    nOHW = -delta_1_t[-1]
+    # Nr projecten met positieve OHW:
+    ntotmi = inkoop[-1]
+    # totaal OHW meters:
+    totOHW = -df_OHW['delta_1'].sum()
     meerw = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Meerwerk'].sum()
 
     data1 = [
@@ -408,7 +420,7 @@ def make_aggregate_figure(selected_data):
     layout_aggregate["autosize"] = True
     layout_aggregate["yaxis"] = dict(title='[m]')
 
-    layout_aggregate2["title"] = "Categorie " + cat + " (OHW)"
+    layout_aggregate2["title"] = "OHW (op basis van deelrevisies)"
     layout_aggregate2["dragmode"] = "select"
     layout_aggregate2["showlegend"] = True
     layout_aggregate2["autosize"] = True
@@ -416,7 +428,7 @@ def make_aggregate_figure(selected_data):
 
     figure1 = dict(data=data1, layout=layout_aggregate)
     figure2 = dict(data=data2, layout=layout_aggregate2)
-    return [figure1, figure2, [str(meerw)]]
+    return [figure1, figure2, [str(meerw), str(nproj), str(ntotmi), str(nOHW)]]
 
 
 # Selectors, main graph -> pie graph
@@ -567,7 +579,7 @@ def make_count_figure(dummy):
     layout_count["autosize"] = True
     layout_count["yaxis"] = dict(title='[m]')
 
-    layout_count2["title"] = "Projecten met OHW"
+    layout_count2["title"] = "OHW (op basis van deelrevisies)"
     layout_count2["dragmode"] = "select"
     layout_count2["showlegend"] = True
     layout_count2["autosize"] = True
