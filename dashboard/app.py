@@ -115,6 +115,7 @@ layout = dict(
 app.layout = html.Div(
     [
         dcc.Store(id="aggregate_data", data=['1', '1','1','1']),
+        dcc.Store(id="aggregate_data2", data=['1', '1','1','1']),
         # empty Div to trigger javascript file for graph resizing
         html.Div(id="output-clientside"),
         html.Div(
@@ -138,7 +139,7 @@ app.layout = html.Div(
                         html.Div(
                             [
                                 html.H3(
-                                    "Analysis OHW VWT Infratechniek",
+                                    "Analyse OHW VWT Infratechniek",
                                     style={"margin-bottom": "0px"},
                                 ),
                                 html.H5(
@@ -150,86 +151,11 @@ app.layout = html.Div(
                     className="one-half column",
                     id="title",
                 ),
-                # html.Div(
-                #     [
-                #         html.Img(
-                #             src=app.get_asset_url("vwt.png"),
-                #             id="vwt-image",
-                #             style={
-                #                 "height": "100px",
-                #                 "width": "auto",
-                #                 "margin-bottom": "25px",
-                #             },
-                #         )
-                #     ],
-                #     className="one-third column",
-                # ),
             ],
             id="header",
             className="row",
             style={"margin-bottom": "25px"},
         ),
-        # html.Div(
-            # [
-                # html.Div(
-                #     [
-                #         html.P(
-                #             "Filter by construction date (or select range in histogram):",
-                #             className="control_label",
-                #         ),
-                #         dcc.RangeSlider(
-                #             id="year_slider",
-                #             min=1960,
-                #             max=2017,
-                #             value=[1990, 2010],
-                #             className="dcc_control",
-                #         ),
-                #         html.P("Filter by type OHW:", className="control_label"),
-                #         dcc.RadioItems(
-                #             id="well_status_selector",
-                #             options=[
-                #                 {"label": "All ", "value": "all"},
-                #             ],
-                #             value="active",
-                #             labelStyle={"display": "inline-block"},
-                #             className="dcc_control",
-                #         ),
-                #         dcc.Dropdown(
-                #             id="well_statuses",
-                #             options=well_status_options,
-                #             multi=True,
-                #             value=list(WELL_STATUSES.keys()),
-                #             className="dcc_control",
-                #         ),
-                #         dcc.Checklist(
-                #             id="lock_selector",
-                #             options=[{"label": "Lock camera", "value": "locked"}],
-                #             className="dcc_control",
-                #             value=[],
-                #         ),
-                #         html.P("Filter by well type:", className="control_label"),
-                #         dcc.RadioItems(
-                #             id="well_type_selector",
-                #             options=[
-                #                 {"label": "All ", "value": "all"},
-                #                 {"label": "Productive only ", "value": "productive"},
-                #                 {"label": "Customize ", "value": "custom"},
-                #             ],
-                #             value="productive",
-                #             labelStyle={"display": "inline-block"},
-                #             className="dcc_control",
-                #         ),
-                #         dcc.Dropdown(
-                #             id="well_types",
-                #             options=well_type_options,
-                #             multi=True,
-                #             value=list(WELL_TYPES.keys()),
-                #             className="dcc_control",
-                #         ),
-                #     ],
-                #     className="pretty_container four columns",
-                #     id="cross-filter-options",
-                # ),
         html.Div(
                     [
                         html.Div(
@@ -259,25 +185,7 @@ app.layout = html.Div(
                             className="row container-display",
                         ),
                     ],
-                    # id="right-column",
-                    # className="row flex-display",
-                # ),
-            # ],
-            # className="row flex-display",
         ),
-        # html.Div(
-        #     [
-        #         html.Div(
-        #             [dcc.Graph(id="main_graph")],
-        #             className="pretty_container seven columns",
-        #         ),
-        #         html.Div(
-        #             [dcc.Graph(id="individual_graph")],
-        #             className="pretty_container five columns",
-        #         ),
-        #     ],
-        #     className="row flex-display",
-        # ),
         html.Div(
             [
                 html.Div(
@@ -295,15 +203,49 @@ app.layout = html.Div(
         html.Div(
             [
                 html.Div(
+                    [
+                        html.Div(
+                            [html.H6(id="wellText2"), html.P("Aantal meters meerwerk in de geselecteerde categorie")],
+                            id="wells2",
+                            className="mini_container",
+                        ),
+                        # html.Div(
+                        #     [html.H6(id="gasText2"), html.P("Aantal projecten met OHW")],
+                        #     id="gas2",
+                        #     className="mini_container",
+                        # ),
+                        # html.Div(
+                        #     [html.H6(id="oilText2"), html.P("Aantal projecten met overfacturatie")],
+                        #     id="oil2",
+                        #     className="mini_container",
+                        # ),
+                        # html.Div(
+                        #     [html.H6(id="waterText2"), html.P("Totaal aantal meter OHW")],
+                        #     id="water2",
+                        #     className="mini_container",
+                        # ),
+                    ],
+                    id="info-container2",
+                    className="row container-display",
+                ),
+            ],
+        ),
+        html.Div(
+            [
+                html.Div(
                     [dcc.Graph(id="pie_graph")],
-                    className="pretty_container six columns",
+                    className="pretty_container 4 columns",
                 ),
                 html.Div(
                     [dcc.Graph(id="aggregate_graph")],
-                    className="pretty_container five columns",
+                    className="pretty_container 4 columns",
+                ),
+                html.Div(
+                    [dcc.Graph(id="aggregate_graph2")],
+                    className="pretty_container 4 columns",
                 ),
             ],
-            # className="row flex-display",
+            className="row flex-display",
         ),
         html.Div(
         html.A('download excel', id='my-link', href='/download_excel')
@@ -359,194 +301,26 @@ app.clientside_callback(
     [Input("count_graph", "figure")],
 )
 
-
-# @app.callback(
-#     Output("aggregate_data", "data"),
-#     [
-#         Input("aggregate_data", "data"),
-#         # Input("well_types", "value"),
-#         # Input("year_slider", "value"),
-#     ],
-# )
-# def update_production_text(well_status_selector):
-
-#     # dff = filter_dataframe(df, well_statuses, well_types, year_slider)
-#     # selected = dff["API_WellNo"].values
-#     # index, gas, oil, water = produce_aggregate(selected, year_slider)
-#     return ['1', '1','1']
-
-
-# # Radio -> multi
-# @app.callback(
-#     Output("well_statuses", "value"), [Input("well_status_selector", "value")]
-# )
-# def display_status(selector):
-#     if selector == "all":
-#         return list(WELL_STATUSES.keys())
-#     elif selector == "active":
-#         return ["AC"]
-#     return []
-
-
-# # Radio -> multi
-# @app.callback(Output("well_types", "value"), [Input("well_type_selector", "value")])
-# def display_type(selector):
-#     if selector == "all":
-#         return list(WELL_TYPES.keys())
-#     elif selector == "productive":
-#         return ["GD", "GE", "GW", "IG", "IW", "OD", "OE", "OW"]
-#     return []
-
-
-# # Slider -> count graph
-# @app.callback(Output("year_slider", "value"), [Input("count_graph", "selectedData")])
-# def update_year_slider(count_graph_selected):
-
-#     if count_graph_selected is None:
-#         return [1990, 2010]
-
-#     nums = [int(point["pointNumber"]) for point in count_graph_selected["points"]]
-#     return [min(nums) + 1960, max(nums) + 1961]
-
-
-# # Selectors -> well text
-# @app.callback(
-#     Output("well_text", "children"),
-#     [
-#         Input("well_statuses", "value"),
-#         Input("well_types", "value"),
-#         Input("year_slider", "value"),
-#     ],
-# )
-# def update_well_text(well_statuses, well_types, year_slider):
-
-#     dff = filter_dataframe(df, well_statuses, well_types, year_slider)
-#     return dff.shape[0]
-
-
 @app.callback(
     [
         Output("wellText", "children"),
         Output("gasText", "children"),
         Output("oilText", "children"),
         Output("waterText", "children"),
+        Output("wellText2", "children"),
     ],
-    [Input("aggregate_data", "data")],
+    [Input("aggregate_data", "data"),
+    Input("aggregate_data2", "data")],
 )
-def update_text(data):
-    return data[0] + " projecten", data[1] + " projecten", data[2] + " projecten", data[3] + " meters"
-
-
-# # Selectors -> main graph
-# @app.callback(
-#     Output("main_graph", "figure"),
-#     [
-#         Input("well_statuses", "value"),
-#         Input("well_types", "value"),
-#         Input("year_slider", "value"),
-#     ],
-#     [State("lock_selector", "value"), State("main_graph", "relayoutData")],
-# )
-# def make_main_figure(
-#     well_statuses, well_types, year_slider, selector, main_graph_layout
-# ):
-
-#     dff = filter_dataframe(df, well_statuses, well_types, year_slider)
-
-#     traces = []
-#     for well_type, dfff in dff.groupby("Well_Type"):
-#         trace = dict(
-#             type="scattermapbox",
-#             lon=dfff["Surface_Longitude"],
-#             lat=dfff["Surface_latitude"],
-#             text=dfff["Well_Name"],
-#             customdata=dfff["API_WellNo"],
-#             name=WELL_TYPES[well_type],
-#             marker=dict(size=4, opacity=0.6),
-#         )
-#         traces.append(trace)
-
-#     # relayoutData is None by default, and {'autosize': True} without relayout action
-#     if main_graph_layout is not None and selector is not None and "locked" in selector:
-#         if "mapbox.center" in main_graph_layout.keys():
-#             lon = float(main_graph_layout["mapbox.center"]["lon"])
-#             lat = float(main_graph_layout["mapbox.center"]["lat"])
-#             zoom = float(main_graph_layout["mapbox.zoom"])
-#             layout["mapbox"]["center"]["lon"] = lon
-#             layout["mapbox"]["center"]["lat"] = lat
-#             layout["mapbox"]["zoom"] = zoom
-
-#     figure = dict(data=traces, layout=layout)
-#     return figure
-
-
-# # Main graph -> individual graph
-# @app.callback(Output("individual_graph", "figure"), [Input("main_graph", "hoverData")])
-# def make_individual_figure(main_graph_hover):
-
-#     layout_individual = copy.deepcopy(layout)
-
-#     if main_graph_hover is None:
-#         main_graph_hover = {
-#             "points": [
-#                 {"curveNumber": 4, "pointNumber": 569, "customdata": 31101173130000}
-#             ]
-#         }
-
-#     chosen = [point["customdata"] for point in main_graph_hover["points"]]
-#     index, gas, oil, water = produce_individual(chosen[0])
-
-#     if index is None:
-#         annotation = dict(
-#             text="No data available",
-#             x=0.5,
-#             y=0.5,
-#             align="center",
-#             showarrow=False,
-#             xref="paper",
-#             yref="paper",
-#         )
-#         layout_individual["annotations"] = [annotation]
-#         data = []
-#     else:
-#         data = [
-#             dict(
-#                 type="scatter",
-#                 mode="lines+markers",
-#                 name="Gas Produced (mcf)",
-#                 x=index,
-#                 y=gas,
-#                 line=dict(shape="spline", smoothing=2, width=1, color="#fac1b7"),
-#                 marker=dict(symbol="diamond-open"),
-#             ),
-#             dict(
-#                 type="scatter",
-#                 mode="lines+markers",
-#                 name="Oil Produced (bbl)",
-#                 x=index,
-#                 y=oil,
-#                 line=dict(shape="spline", smoothing=2, width=1, color="#a9bb95"),
-#                 marker=dict(symbol="diamond-open"),
-#             ),
-#             dict(
-#                 type="scatter",
-#                 mode="lines+markers",
-#                 name="Water Produced (bbl)",
-#                 x=index,
-#                 y=water,
-#                 line=dict(shape="spline", smoothing=2, width=1, color="#92d8d8"),
-#                 marker=dict(symbol="diamond-open"),
-#             ),
-#         ]
-#         layout_individual["title"] = dataset[chosen[0]]["Well_Name"]
-
-#     figure = dict(data=data, layout=layout_individual)
-#     return figure
-
+def update_text(data1, data2):
+    return data1[0] + " projecten", data1[1] + " projecten", data1[2] + " projecten", data1[3] + " meters", data2[0] + " meters"
 
 # Selectors, main graph -> aggregate graph
 @app.callback(
-    Output("aggregate_graph", "figure"),
+    [Output("aggregate_graph", "figure"),
+     Output("aggregate_graph2", "figure"),
+     Output("aggregate_data2", "data"),
+    ],
     [
         Input("pie_graph", 'clickData'),
         # Input("well_types", "value"),
@@ -563,6 +337,7 @@ def make_aggregate_figure(selected_data):
         cat = selected_data.get('points')[0].get('label')
     
     layout_aggregate = copy.deepcopy(layout)
+    layout_aggregate2 = copy.deepcopy(layout)
     
     df_OHW = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/df_OHW.pkl')
     inkoop = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/inkoop.pkl')
@@ -578,13 +353,14 @@ def make_aggregate_figure(selected_data):
     ingeschat = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Ingeschat'].sum()
     gefactureerd = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Gefactureerd totaal'].sum()
 
-    # revisie = revisie[list(projecten)]
+    inkoop = inkoop.groupby('LEVERDATUM_ONTVANGST').agg({'Ontvangen':'sum'})
+    inkoop = inkoop['Ontvangen'].cumsum().asfreq('D', 'ffill')
+    revisie = revisie.sum(axis=1).asfreq('D', 'ffill')
+    delta_1_t = revisie[inkoop.index[0]:inkoop.index[-1]] - inkoop
 
-    inkoop = inkoop['Ontvangen'].cumsum()#.asfreq('D', 'ffill')
-    revisie = revisie.sum(axis=1)#.asfreq('D', 'ffill')
-    # delta_1_t = revisie[inkoop.index[0]:inkoop.index[-1]] - inkoop
+    meerw = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Meerwerk'].sum()
 
-    data = [
+    data1 = [
         dict(
             type="line",
             x=inkoop.index,
@@ -597,7 +373,7 @@ def make_aggregate_figure(selected_data):
             type="line",
             x=revisie.index[3:],
             y=revisie,
-            name="Gefactureerd (op basis van deelrevisies)",
+            name="Deelrevisies Totaal",
             opacity=0.5,
             hoverinfo="skip",
         ),
@@ -615,13 +391,32 @@ def make_aggregate_figure(selected_data):
         ),
     ]
 
+    data2 = [
+        dict(
+            type="line",
+            x=delta_1_t.index,
+            y=-delta_1_t,
+            name="OHW",
+            opacity=0.5,
+            hoverinfo="skip",
+        ),
+    ]
+
     layout_aggregate["title"] = "Categorie " + cat
     layout_aggregate["dragmode"] = "select"
     layout_aggregate["showlegend"] = True
     layout_aggregate["autosize"] = True
+    layout_aggregate["yaxis"] = dict(title='[m]')
 
-    figure = dict(data=data, layout=layout_aggregate)
-    return figure
+    layout_aggregate2["title"] = "Categorie " + cat + " (OHW)"
+    layout_aggregate2["dragmode"] = "select"
+    layout_aggregate2["showlegend"] = True
+    layout_aggregate2["autosize"] = True
+    layout_aggregate2["yaxis"] = dict(title='[m]')
+
+    figure1 = dict(data=data1, layout=layout_aggregate)
+    figure2 = dict(data=data2, layout=layout_aggregate2)
+    return [figure1, figure2, [str(meerw)]]
 
 
 # Selectors, main graph -> pie graph
@@ -653,21 +448,6 @@ def make_pie_figure(dummy):
         dict(
             type="pie",
             labels=["b1", "b2", "b3", "b4", "b5", "b6", "b7"],
-            values=[-m_b.loc['Cat1'][0], -m_b.loc['Cat2a'][0], -m_b.loc['Cat2b'][0], -m_b.loc['Cat3'][0], \
-                    -m_b.loc['Cat4a'][0], -m_b.loc['Cat4b'][0], -m_b.loc['Cat5'][0]],
-            name="Project Breakdown",
-            text=bakjes_info,
-            hoverinfo="text",
-            textinfo="percent",
-            # textinfo="label+percent+name",
-            hole=0.5,
-            marker=dict(colors=["#fac1b7", "#a9bb95", "#92d8d8", "#92d3d8", "#92d9d8", "#92d9d2", "#92d9d3"]),
-            domain={"x": [0, 0.45], "y": [0.2, 0.8]},
-            # selectedpoints=None,
-        ),
-        dict(
-            type="pie",
-            labels=["b1", "b2", "b3", "b4", "b5", "b6", "b7"],
             values=[len(p_b.loc['Cat1'][:]), len(p_b.loc['Cat2a'][:]), len(p_b.loc['Cat2b'][:]), len(p_b.loc['Cat3'][:]), \
                     len(p_b.loc['Cat4a'][:]), len(p_b.loc['Cat4b'][:]), len(p_b.loc['Cat5'][:])],
             name="OHW meters Breakdown",
@@ -675,12 +455,13 @@ def make_pie_figure(dummy):
             hoverinfo="text",
             textinfo="percent",
             hole=0.5,
-            marker=dict(colors=["#fac1b7", "#a9bb95", "#92d8d8", "#92d3d8", "#92d9d8", "#92d9d2", "#92d9d3"]),
-            domain={"x": [0.55, 1], "y": [0.2, 0.8]},
+            # marker=dict(colors=["#fac1b7", "#a9bb95", "#92d8d8", "#92d3d8", "#92d9d8", "#92d9d2", "#92d9d3"]),
+            marker=dict(colors=["#30304b", "#3b496c", "#3f648d", "#3d81ae", "#339fcd", "#20bfe8", "#00dfff"]),
+            # domain={"x": [0.55, 1], "y": [0.2, 0.8]},
             # selectedpoints=None,
         ),
     ]
-    layout_pie["title"] = "Categorieen OHW (links aantal projecten, rechts aantal meters):"
+    layout_pie["title"] = "Categorieen OHW (aantal meters):"
     layout_pie["clickmode"] = "event+select"
     layout_pie["font"] = dict(color="#777777")
     layout_pie["legend"] = dict(
@@ -706,6 +487,7 @@ def make_pie_figure(dummy):
 def make_count_figure(dummy):
 
     layout_count = copy.deepcopy(layout)
+    layout_count2 = copy.deepcopy(layout)
 
     df_OHW = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/df_OHW.pkl')
     inkoop = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/inkoop.pkl')
@@ -750,7 +532,7 @@ def make_count_figure(dummy):
             type="line",
             x=revisie.index[3:],
             y=revisie,
-            name="Gefactureerd (op basis van deelrevisies)",
+            name="Deelrevisies Totaal",
             opacity=0.5,
             hoverinfo="skip",
         ),
@@ -779,13 +561,20 @@ def make_count_figure(dummy):
         ),
     ]
 
-    layout_count["title"] = ""
+    layout_count["title"] = "Projecten met OHW"
     layout_count["dragmode"] = "select"
     layout_count["showlegend"] = True
     layout_count["autosize"] = True
+    layout_count["yaxis"] = dict(title='[m]')
+
+    layout_count2["title"] = "Projecten met OHW"
+    layout_count2["dragmode"] = "select"
+    layout_count2["showlegend"] = True
+    layout_count2["autosize"] = True
+    layout_count2["yaxis"] = dict(title='[m]')
 
     figure1 = dict(data=data1, layout=layout_count)
-    figure2 = dict(data=data2, layout=layout_count)
+    figure2 = dict(data=data2, layout=layout_count2)
     return [figure1, figure2,[str(nproj), str(nOHW), str(overfacturatie), str(totOHW)]]
 
 
