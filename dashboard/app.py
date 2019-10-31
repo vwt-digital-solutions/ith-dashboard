@@ -118,9 +118,11 @@ app.layout = html.Div(
                 html.Div(
                     [
                         html.Div(
-                            [html.H6(id="uitleg0"), html.P("Eerst analyseren we de totale set van projecten in workflow t.o.v. geulen graven:")],
-                            id="uitleg00",
-                            className="pretty_container 1 columns",
+                            [
+                                html.H5("Vervolgens analyseren we de totale set van projecten in workflow t.o.v. geulen graven:",
+                                    style={"margin-top": "0px"}
+                                ),
+                            ]
                         ),
                     ],
                     id="info-container0",
@@ -178,9 +180,11 @@ app.layout = html.Div(
                 html.Div(
                     [
                         html.Div(
-                            [html.H6(id="uitleg1"), html.P("Vervolgens kan deze set van projecten onderzocht worden op basis van verschillende categorieen, oorzaak OHW:")],
-                            id="uitleg01",
-                            className="pretty_container 1 columns",
+                            [
+                                html.H5("Vervolgens kan deze set van projecten onderzocht worden op basis van verschillende categorieen, oorzaak OHW:",
+                                    style={"margin-top": "40px"}
+                                ),
+                            ]
                         ),
                     ],
                     id="info-container2",
