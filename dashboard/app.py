@@ -115,11 +115,25 @@ app.layout = html.Div(
         ),
         html.Div(
             [
+                dcc.Checklist(
+                                options=[
+                                            {'label': 'Vanaf nul punt', 'value': 'NL'},
+                                            {'label': 'Afgehecht niet meenemen', 'value': 'Af'}
+                                        ],
+                                        id='checklist_filters',
+                                        value=[],
+                                        className="one-third column",
+                                        style={"margin-bottom": "25px"},
+                ),
+            ],
+        ),
+        html.Div(
+            [
                 html.Div(
                     [
                         html.Div(
                             [
-                                html.H5("Vervolgens analyseren we de totale set van projecten in workflow t.o.v. geulen graven:",
+                                html.H5("Eerst analyseren we de totale set van projecten in workflow t.o.v. geulen graven:",
                                     style={"margin-top": "0px"}
                                 ),
                             ]
@@ -339,10 +353,10 @@ def update_text(data1, data2):
     Output("aggregate_data", "data")
     ],
     [
-        Input("pie_graph", 'clickData'),
+        Input("checklist_filters", 'value'),
     ],
 )
-def make_global_figures(dummy):
+def make_global_figures(filter_selectie):
 
     layout_global_projects = copy.deepcopy(layout)
     layout_global_projects_OHW = copy.deepcopy(layout)
@@ -351,11 +365,27 @@ def make_global_figures(dummy):
     df_inkoop = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/inkoop.pkl')
     df_revisie = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/revisie.pkl')
     df_workflow = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/workflow.pkl')
+    # code voor het maken van het nulpunt...projecten met 0 inkoop en 0 gefactureerd...
+    # df_workflow[~((df_workflow['Gefactureerd totaal'] == 0) & (df_workflow['Ingekocht'] == 0))]['Project'].to_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/pcodes_nulpunt_' + dt.datetime.now().strftime('%d-%m-%Y') + '.pkl')
+
+    if 'NL' in filter_selectie:
+        pcodes_nulpunt = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/pcodes_nulpunt_31-10-2019.pkl')
+        df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)]
+        df_OHW = df_OHW[~df_OHW['Project'].isin(pcodes_nulpunt)]
+        if df_OHW.empty: # alleen nodig voor leeg nulpunt
+            df_OHW.loc['30-10-2019'] = [0,0,0,0,0,0,0,0,0,0,0,0]
+            df_OHW.loc['31-10-2019'] = [0,0,0,0,0,0,0,0,0,0,0,0]
+            df_OHW.index = pd.to_datetime(df_OHW.index)
 
     # Alle projecten met OHW
     projecten = df_OHW['Project'].unique()
     # Alle df_inkoop orders 
     df_inkoop = df_inkoop[df_inkoop['PROJECT'].isin(projecten)]
+    if df_inkoop.empty: # alleen nodig voor leeg nulpunt
+            df_inkoop.loc['30-10-2019'] = [0,0,0,0,0,0,0,0,0,0,0]
+            df_inkoop.loc['31-10-2019'] = [0,0,0,0,0,0,0,0,0,0,0]
+            df_inkoop.index = pd.to_datetime(df_inkoop.index)
+    
     # df_revisies
     projecten = set(projecten) - (set(projecten) - set(df_revisie.columns))
     df_revisie = df_revisie[list(projecten)]
@@ -371,7 +401,7 @@ def make_global_figures(dummy):
     # Totaal aantal projecten:
     nproj = df_workflow['Project'].nunique()
     # Nr projecten met negatieve OHW:
-    nOHW = df_OHW['Project'].nunique()
+    nOHW = len(projecten)
     # Nr projecten met positieve OHW:
     noverfac = df_workflow[df_workflow['delta_1'] > 0]['Project'].nunique()
     # totaal OHW meters:
@@ -439,14 +469,28 @@ def make_global_figures(dummy):
 @app.callback(
     Output("pie_graph", "figure"),
     [
-        Input("pie_graph", 'clickData'),
+        Input("checklist_filters", 'value'),
     ],
 )
-def make_pie_figure(dummy):
+def make_pie_figure(filter_selectie):
 
     layout_pie = copy.deepcopy(layout)
 
     df_OHW = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/df_OHW.pkl')
+    
+    if 'NL' in filter_selectie:
+        pcodes_nulpunt = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/pcodes_nulpunt_31-10-2019.pkl')
+        df_OHW = df_OHW[~df_OHW['Project'].isin(pcodes_nulpunt)]
+        if df_OHW.empty: # alleen nodig voor leeg nulpunt
+            df_OHW.loc['25-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat1',0]
+            df_OHW.loc['26-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat2a',0]
+            df_OHW.loc['27-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat2b',0]
+            df_OHW.loc['28-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat3',0]
+            df_OHW.loc['29-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat4a',0]
+            df_OHW.loc['30-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat4b',0]
+            df_OHW.loc['31-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat5',0]
+            df_OHW.index = pd.to_datetime(df_OHW.index)
+
     meters_cat = -df_OHW.groupby('Categorie').agg({'delta_1':'sum'})
 
     beschrijving_cat = [
@@ -493,9 +537,10 @@ def make_pie_figure(dummy):
     ],
     [
         Input("pie_graph", 'clickData'),
+        Input("checklist_filters", 'value')
     ],
 )
-def figures_selected_category(selected_category):
+def figures_selected_category(selected_category, filter_selectie):
 
     cat_lookup = {'b1':'Cat1','b2':'Cat2a','b3':'Cat2b','b4':'Cat3','b5':'Cat4a','b6':'Cat4b','b7':'Cat5'}
     if selected_category == None:
@@ -510,10 +555,29 @@ def figures_selected_category(selected_category):
     df_inkoop = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/inkoop.pkl')
     df_revisie = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/revisie.pkl')
 
+    if 'NL' in filter_selectie:
+        pcodes_nulpunt = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/pcodes_nulpunt_31-10-2019.pkl')
+        df_OHW = df_OHW[~df_OHW['Project'].isin(pcodes_nulpunt)]
+        if df_OHW.empty: # alleen nodig voor leeg nulpunt
+            df_OHW.loc['25-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat1',0]
+            df_OHW.loc['26-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat2a',0]
+            df_OHW.loc['27-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat2b',0]
+            df_OHW.loc['28-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat3',0]
+            df_OHW.loc['29-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat4a',0]
+            df_OHW.loc['30-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat4b',0]
+            df_OHW.loc['31-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat5',0]
+            df_OHW.index = pd.to_datetime(df_OHW.index)
+
+
     # Alle projecten met OHW
     projecten = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Project']
     # Alle inkoop orders 
     df_inkoop = df_inkoop[df_inkoop['PROJECT'].isin(projecten)]
+    if df_inkoop.empty: # alleen nodig voor leeg nulpunt
+        df_inkoop.loc['30-10-2019'] = [0,0,0,0,0,0,0,0,0,0,0]
+        df_inkoop.loc['31-10-2019'] = [0,0,0,0,0,0,0,0,0,0,0]
+        df_inkoop.index = pd.to_datetime(df_inkoop.index)
+    
     # revisie
     projecten = set(projecten) - (set(projecten) - set(df_revisie.columns))
     df_revisie = df_revisie[list(projecten)]
