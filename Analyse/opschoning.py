@@ -8,22 +8,23 @@ sns.set()
 
 def get_extra_werk():
     
-    path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data'
+    path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Aanlevering Arend/'
+    path_pickles = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Pickles_analyse/191101_pickles_analyse/'
     
     # Geul codes ophalen
-    df_codes = pd.read_pickle(path + '/pickles/codes')
+    df_codes = pd.read_pickle(path_pickles + 'codes')
     geul_codes = df_codes[['Tabblad codes VE BIS', 'Soort code']].\
         rename(columns={'Tabblad codes VE BIS':'Codes','Soort code':'omschrijving'})
-    codes_extra = pd.read_excel(path + '/Artikelen_toegevoegd_A.xlsx', 'Blad2')
+    codes_extra = pd.read_excel(path + 'Artikelen_toegevoegd_A.xlsx', 'Blad2')
     codes_extra = codes_extra[['ARTIKEL','ARTIKEL_OMSCHRIJVING']].\
         rename(columns={'ARTIKEL':'Codes', 'ARTIKEL_OMSCHRIJVING':'omschrijving'})
     geul_codes = geul_codes.append(codes_extra, sort=True) 
     # inlezen extra werk codes en DP codes
-    df_codes_ew = pd.read_excel(path + '/Codes_extrawerk.xlsx').astype('str')
+    df_codes_ew = pd.read_excel(path + 'Codes_extrawerk.xlsx').astype('str')
     df_codes_ew.drop(index=[4, 5, 6], inplace=True)
     df_codes_ew.rename(columns={'Unnamed: 0': 'ARTIKEL'}, inplace=True)
     # inlezen alle inkoop orders 
-    inkoop = pd.read_pickle(path + '/pickles/inkooporders')
+    inkoop = pd.read_pickle(path_pickles + 'inkooporders')
     inkoop = inkoop[['INKOOPORDER', 'POSITIE', 'LEVERDATUM', 'INKOPER', 'PROJECT', 'ARTIKEL', 'ARTIKEL_OMSCHRIJVING',
                             'LEVERDATUM_ONTVANGST', 'STATUS', 'HOEVEELHEID_PAKBON', 'PRIJS', 'TOTAALPRIJS', 'Ontvangen']]  # artikel linkt naar codes geul
 
@@ -66,19 +67,21 @@ def get_extra_werk():
 def get_data(extra_werk_project): 
 
     #%% inlezen bestanden:
-    path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data'
+    path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Aanlevering Arend/'
+    path_pickles = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Pickles_analyse/191101_pickles_analyse/'
+
     # Inkooporders 
     df_inkooporder = pd.read_pickle(
-        path + '/pickles/inkooporders')  # inkoop data uit BAAN
+        path_pickles + 'inkooporders')  # inkoop data uit BAAN
     # workflow financiceel
-    df_wff = pd.read_pickle(path + '/pickles/wff')  # facturatie data uit Workflow
+    df_wff = pd.read_pickle(path_pickles + 'wff')  # facturatie data uit Workflow
     # revisie data 
-    df_rev = pd.read_excel(path + '/view_bestanden_deel_eindrevisie.xlsx')
+    df_rev = pd.read_excel(path + 'view_bestanden_deel_eindrevisie.xlsx')
     # codes gerelateerd aan geul werk
-    df_codes = pd.read_pickle(path + '/pickles/codes')
+    df_codes = pd.read_pickle(path_pickles + 'codes')
     geul_codes = df_codes[['Tabblad codes VE BIS', 'Soort code']].\
         rename(columns={'Tabblad codes VE BIS':'Codes','Soort code':'omschrijving'})
-    codes_extra = pd.read_excel(path + '/Artikelen_toegevoegd_A.xlsx', 'Blad2')
+    codes_extra = pd.read_excel(path + 'Artikelen_toegevoegd_A.xlsx', 'Blad2')
     codes_extra = codes_extra[['ARTIKEL','ARTIKEL_OMSCHRIJVING']].\
         rename(columns={'ARTIKEL':'Codes', 'ARTIKEL_OMSCHRIJVING':'omschrijving'})
     geul_codes = geul_codes.append(codes_extra, sort=True) 
@@ -251,10 +254,10 @@ def categorize(workflow):
     Als ouput het dataframe met Projectnummer en categorie en het aantal meters
     '''
     
-    path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data'
+    path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Aanlevering Arend/'
 
     # Analyse waar de revisie data een 'daling' weergeeft.
-    df_rev = pd.read_excel(path + '/view_bestanden_deel_eindrevisie.xlsx')
+    df_rev = pd.read_excel(path + 'view_bestanden_deel_eindrevisie.xlsx')
     df_rev = df_rev[['Type', 'Datum', 'Projectnummer', 'Totale geullengte']]
     revisie = df_rev
     revisie = revisie[(~revisie['Projectnummer'].isna()) &\
@@ -319,6 +322,45 @@ def categorize(workflow):
 
     return df_OHW, workflow 
 
+def analyse_revisie():
+    '''
+    Als de deelrevisies niet oplopen, dus er zit een dip in, dan wordt dit geflagd
+    Deze functie geeft de revisie data terug met achter iedere lijn of het gehele project 
+    een dip heeft. 
+    '''
+    path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Aanlevering Arend/'
+
+    # Analyse waar de revisie data een 'daling' weergeeft.
+    df_rev = pd.read_excel(path + 'view_bestanden_deel_eindrevisie.xlsx')
+    df_rev = df_rev[['Type', 'Datum', 'Projectnummer', 'Totale geullengte']]
+    df_rev = df_rev[(~df_rev['Projectnummer'].isna()) &\
+        (~df_rev['Totale geullengte'].isna()) &\
+        (df_rev['Projectnummer'] != '-')]
+    revisie = df_rev
+    revisie['Projectnummer'] = revisie['Projectnummer'].astype('str')
+    revisie['Datum'] = pd.to_datetime(revisie['Datum'])
+    revisie['Datum'] = revisie['Datum'].dt.strftime('%Y-%m-%d')
+    revisie['Datum'] = pd.to_datetime(revisie['Datum'])
+    revisie.sort_values('Datum', inplace=True)
+
+    projectnummers_revisie = list(revisie['Projectnummer'].unique())
+    
+    negatieve_revisie = []
+    for project in projectnummers_revisie:
+        temp = revisie[revisie['Projectnummer']==project]
+        temp = list(temp['Totale geullengte'])
+        temp = [j-i for i, j in zip(temp[:-1], temp[1:])]
+        if len(temp)==0:
+            temp=0
+        else:
+            temp = min(temp)
+        negatieve_revisie.append(temp)
+    foutieve_revisie = pd.DataFrame({'Project':projectnummers_revisie,'Daling aanwezig': negatieve_revisie}, columns=['Project', 'Daling aanwezig'])
+
+    df_rev = df_rev.merge(foutieve_revisie, left_on='Projectnummer', right_on='Project', how='left')
+    df_rev = df_rev[(df_rev['Daling aanwezig']<0)]
+    df_rev.sort_values(['Projectnummer','Datum'], inplace=True)
+    df_rev.drop(columns=['Project'], inplace=True)
 
 
-
+    return df_rev
