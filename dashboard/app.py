@@ -70,6 +70,9 @@ layout = dict(
     title="Satellite Overview",
 )
 
+# path to files
+pickle_path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Pickles_dashboard/191101_pickles_dashboard/'
+
 # Create app layout
 app.layout = html.Div(
     [
@@ -118,7 +121,7 @@ app.layout = html.Div(
                 dcc.Checklist(
                                 options=[
                                             {'label': 'Vanaf nul punt', 'value': 'NL'},
-                                            {'label': 'Afgehecht niet meenemen', 'value': 'Af'}
+                                            {'label': 'Projecten met afgehecht niet meenemen', 'value': 'AF'}
                                         ],
                                         id='checklist_filters',
                                         value=[],
@@ -186,6 +189,7 @@ app.layout = html.Div(
                         className="pretty_container 6 columns",
                 ),
             ],
+            id="info-container01",
             className="row flex-display",
             # style={"margin-bottom": "50px"}, 
         ),
@@ -226,7 +230,7 @@ app.layout = html.Div(
                             className="pretty_container 3 columns",
                         ),
                         html.Div(
-                            [html.H6(id="info_bakje_3"), html.P("Totaal aantal meters OHW  (op basis van deeldf_revisies)")],
+                            [html.H6(id="info_bakje_3"), html.P("Totaal aantal meters OHW  (op basis van deel revisies)")],
                             id="water2",
                             className="pretty_container 3 columns",
                         ),
@@ -307,11 +311,11 @@ def update_link(clickData):
 def download_excel():
     #Create DF
     cat = flask.request.args.get('categorie')
-    cat_lookup = {'b1':'Cat1','b2':'Cat2a','b3':'Cat2b','b4':'Cat3','b5':'Cat4a','b6':'Cat4b','b7':'Cat5'}
-    df_OHW = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/df_OHW.pkl')
+    cat_lookup = {'b1':'Cat1','b2':'Cat2','b3':'Cat3','b4':'Cat4','b5':'Cat6'}
+    df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl')
     # Alle projecten met OHW
-    projecten = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]
-    df = projecten[['Project','Gefactureerd totaal', 'Ingeschat', 'Ingekocht','df_revisie totaal','Meerwerk', 'Categorie']]
+    projecten = df_workflow[df_workflow['Categorie'] == cat_lookup.get(cat)]
+    df = projecten[['Project','Gefactureerd totaal', 'Aangeboden', 'Ingekocht','df_revisie totaal','Meerwerk', 'Categorie']]
 
     #Convert DF
     strIO = io.BytesIO()
@@ -361,22 +365,29 @@ def make_global_figures(filter_selectie):
     layout_global_projects = copy.deepcopy(layout)
     layout_global_projects_OHW = copy.deepcopy(layout)
 
-    df_OHW = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/df_OHW.pkl')
-    df_inkoop = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/inkoop.pkl')
-    df_revisie = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/revisie.pkl')
-    df_workflow = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/workflow.pkl')
+    # df_OHW = pd.read_pickle(pickle_path + 'df_OHW.pkl')
+    df_inkoop = pd.read_pickle(pickle_path + 'inkoop.pkl')
+    df_revisie = pd.read_pickle(pickle_path + 'revisie.pkl')
+    df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl')
+    df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
     # code voor het maken van het nulpunt...projecten met 0 inkoop en 0 gefactureerd...
     # df_workflow[~((df_workflow['Gefactureerd totaal'] == 0) & (df_workflow['Ingekocht'] == 0))]['Project'].to_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/pcodes_nulpunt_' + dt.datetime.now().strftime('%d-%m-%Y') + '.pkl')
 
+    # if 'AF' in filter_selectie:
+        # codes_af = 
+        # df_workflow = 
+        # df_OHW = 
+
     if 'NL' in filter_selectie:
-        pcodes_nulpunt = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/pcodes_nulpunt_31-10-2019.pkl')
+        pcodes_nulpunt = pd.read_pickle(pickle_path + 'pcodes_nulpunt_31-10-2019.pkl')
         df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)]
         df_OHW = df_OHW[~df_OHW['Project'].isin(pcodes_nulpunt)]
+        df_OHW = df_OHW.drop(index=1658) # temporary fix for strange project entry?
         if df_OHW.empty: # alleen nodig voor leeg nulpunt
-            df_OHW.loc['30-10-2019'] = [0,0,0,0,0,0,0,0,0,0,0,0]
-            df_OHW.loc['31-10-2019'] = [0,0,0,0,0,0,0,0,0,0,0,0]
+            df_OHW.loc['30-10-2019'] = [0,0,0,0,0,0,0,0,0,0]
+            df_OHW.loc['31-10-2019'] = [0,0,0,0,0,0,0,0,0,0]
             df_OHW.index = pd.to_datetime(df_OHW.index)
-
+    
     # Alle projecten met OHW
     projecten = df_OHW['Project'].unique()
     # Alle df_inkoop orders 
@@ -391,7 +402,7 @@ def make_global_figures(filter_selectie):
     df_revisie = df_revisie[list(projecten)]
     
     # waardes voor grafieken
-    ingeschat = df_OHW['Ingeschat'].sum()
+    ingeschat = df_OHW['Aangeboden'].sum()
     gefactureerd = df_OHW['Gefactureerd totaal'].sum()
     inkoop = df_inkoop.groupby('LEVERDATUM_ONTVANGST').agg({'Ontvangen':'sum'})
     inkoop = inkoop['Ontvangen'].cumsum().asfreq('D', 'ffill')
@@ -405,7 +416,7 @@ def make_global_figures(filter_selectie):
     # Nr projecten met positieve OHW:
     noverfac = df_workflow[df_workflow['delta_1'] > 0]['Project'].nunique()
     # totaal OHW meters:
-    totOHW = -df_OHW['delta_1'].sum()
+    totOHW = -df_OHW['delta_1'].sum().round(0)
 
     data1 = [
         dict(
@@ -425,15 +436,20 @@ def make_global_figures(filter_selectie):
             hoverinfo="skip",
         ),
         dict(
-            mode="line",
-            x=[revisie.index[3], revisie.index[-1], ],
-            y=[gefactureerd,gefactureerd],
+            type="line",
+            mode='markers',
+            marker=dict(size=12, symbol='triangle-left'),
+            symbol='<',
+            x=[pd.datetime.now()],
+            y=[gefactureerd],
             name="Gefactureerd Totaal",
         ),
         dict(
             type="line",
-            x=[revisie.index[3], revisie.index[-1]],
-            y=[ingeschat, ingeschat],
+            mode='markers',
+            marker=dict(size=12, symbol='triangle-left'),
+            x=[pd.datetime.now()],
+            y=[ingeschat],
             name="Ingeschat",
         ),
     ]
@@ -454,6 +470,7 @@ def make_global_figures(filter_selectie):
     layout_global_projects["showlegend"] = True
     layout_global_projects["autosize"] = True
     layout_global_projects["yaxis"] = dict(title='[m]')
+    layout_global_projects["line"]=dict(dash='dash')
 
     layout_global_projects_OHW["title"] = "OHW (op basis van deel revisies)"
     layout_global_projects_OHW["dragmode"] = "select"
@@ -476,55 +493,56 @@ def make_pie_figure(filter_selectie):
 
     layout_pie = copy.deepcopy(layout)
 
-    df_OHW = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/df_OHW.pkl')
-    
+    df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl')
+    df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
+
     if 'NL' in filter_selectie:
-        pcodes_nulpunt = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/pcodes_nulpunt_31-10-2019.pkl')
+        pcodes_nulpunt = pd.read_pickle(pickle_path + 'pcodes_nulpunt_31-10-2019.pkl')
         df_OHW = df_OHW[~df_OHW['Project'].isin(pcodes_nulpunt)]
+        df_OHW = df_OHW.drop(index=1658) # temporary fix for strange project entry?
         if df_OHW.empty: # alleen nodig voor leeg nulpunt
-            df_OHW.loc['25-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat1',0]
-            df_OHW.loc['26-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat2a',0]
-            df_OHW.loc['27-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat2b',0]
-            df_OHW.loc['28-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat3',0]
-            df_OHW.loc['29-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat4a',0]
-            df_OHW.loc['30-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat4b',0]
-            df_OHW.loc['31-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat5',0]
+            df_OHW.loc['25-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat1']
+            df_OHW.loc['26-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat2']
+            df_OHW.loc['27-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat3']
+            df_OHW.loc['28-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat4']
+            df_OHW.loc['29-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat5']
+            df_OHW.loc['30-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat6']
+            df_OHW.loc['31-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat7']
             df_OHW.index = pd.to_datetime(df_OHW.index)
 
     meters_cat = -df_OHW.groupby('Categorie').agg({'delta_1':'sum'})
 
     beschrijving_cat = [
-        'gefactureerd=0, deeldf_revisie=0', 
-        'gefactureerd=0, df_revisie>0, ingekocht > ingeschat',
-        'gefactureerd=0, df_revisie>0, ingekocht < ingeschat', 
-        'gefactureerd = df_revisie', 
-        'gefactureerd < df_revisie, ingekocht > ingeschat', 
-        'gefactureerd > df_revisie, ingekocht < ingeschat', 
-        'gefactureerd > df_revisie,'
+        'moet upgedate!', 
+        'gefactureerd=0, revisie>0, ingekocht > ingeschat',
+        'gefactureerd=0, revisie>0, ingekocht < ingeschat', 
+        'gefactureerd = revisie', 
+        'gefactureerd < revisie, ingekocht > ingeschat', 
     ] 
 
     data = [
         dict(
             type="pie",
-            labels=["b1", "b2", "b3", "b4", "b5", "b6", "b7"],
-            values=[meters_cat.loc['Cat1'][0], meters_cat.loc['Cat2a'][0], meters_cat.loc['Cat2b'][0], meters_cat.loc['Cat3'][0], \
-                    meters_cat.loc['Cat4a'][0], meters_cat.loc['Cat4b'][0], meters_cat.loc['Cat5'][0]],
-            name="OHW meters Breakdown",
+            labels=["b1", "b2", "b3", "b4", "b5"],
+            values=[meters_cat.loc['Cat1'][0].round(0), meters_cat.loc['Cat2'][0].round(0), meters_cat.loc['Cat3'][0].round(0), meters_cat.loc['Cat4'][0].round(0), \
+                    meters_cat.loc['Cat6'][0].round(0)],
+            # name=["b111", "b2", "b3", "b4", "b5", "b6", "b7"],
             text=beschrijving_cat,
             hoverinfo="text",
-            textinfo="percent",
+            textinfo="value",
             hole=0.5,
-            marker=dict(colors=["#30304b", "#3b496c", "#3f648d", "#3d81ae", "#339fcd", "#20bfe8", "#00dfff"]),
-            # domain={"x": [0.55, 1], "y": [0.2, 0.8]},
+            marker=dict(colors=["#30304b", "#3b496c", "#3f648d", "#3d81ae", "#339fcd"]),
+            domain={"x": [0, 1], "y": [0.35, 1]},
         ),
     ]
     layout_pie["title"] = "Categorieen OHW (aantal meters):"
     layout_pie["clickmode"] = "event+select"
     layout_pie["font"] = dict(color="#777777")
     layout_pie["legend"] = dict(
-        font=dict(color="#CCCCCC", size="10"), orientation="h", bgcolor="rgba(0,0,0,0)"
+        font=dict(color="#CCCCCC", size="14"), orientation="v", bgcolor="rgba(0,0,0,0)", traceorder='normal', itemclick=False, xanchor='bottom'
     )
-    layout_pie["showlegend"] = False
+    layout_pie["showlegend"] = True
+    layout_pie["height"] = 470    
     figure = dict(data=data, layout=layout_pie)
     return figure
 
@@ -542,7 +560,7 @@ def make_pie_figure(filter_selectie):
 )
 def figures_selected_category(selected_category, filter_selectie):
 
-    cat_lookup = {'b1':'Cat1','b2':'Cat2a','b3':'Cat2b','b4':'Cat3','b5':'Cat4a','b6':'Cat4b','b7':'Cat5'}
+    cat_lookup = {'b1':'Cat1','b2':'Cat2','b3':'Cat3','b4':'Cat4','b5':'Cat6'}
     if selected_category == None:
         cat = 'b1'
     else:
@@ -551,12 +569,13 @@ def figures_selected_category(selected_category, filter_selectie):
     layout_graph_selected_projects = copy.deepcopy(layout)
     layout_graph_selected_projects_OHW = copy.deepcopy(layout)
     
-    df_OHW = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/df_OHW.pkl')
-    df_inkoop = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/inkoop.pkl')
-    df_revisie = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/revisie.pkl')
+    df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl') 
+    df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
+    df_inkoop = pd.read_pickle(pickle_path + 'inkoop.pkl')
+    df_revisie = pd.read_pickle(pickle_path + 'revisie.pkl')
 
     if 'NL' in filter_selectie:
-        pcodes_nulpunt = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/pcodes_nulpunt_31-10-2019.pkl')
+        pcodes_nulpunt = pd.read_pickle(pickle_path + 'pcodes_nulpunt_31-10-2019.pkl')
         df_OHW = df_OHW[~df_OHW['Project'].isin(pcodes_nulpunt)]
         if df_OHW.empty: # alleen nodig voor leeg nulpunt
             df_OHW.loc['25-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat1',0]
@@ -583,7 +602,7 @@ def figures_selected_category(selected_category, filter_selectie):
     df_revisie = df_revisie[list(projecten)]
     
     # waardes voor grafieken
-    ingeschat = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Ingeschat'].sum()
+    ingeschat = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Aangeboden'].sum()
     gefactureerd = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Gefactureerd totaal'].sum()
     inkoop = df_inkoop.groupby('LEVERDATUM_ONTVANGST').agg({'Ontvangen':'sum'})
     inkoop = inkoop['Ontvangen'].cumsum().asfreq('D', 'ffill')
@@ -593,11 +612,11 @@ def figures_selected_category(selected_category, filter_selectie):
     # Totaal aantal projecten:
     nproj = len(projecten)
     # Aantal meters OHW in deze selectie:
-    mOHW = -OHW[-1]
+    mOHW = -OHW[-1].round(0)
     # Aantal projecten met positieve OHW:
-    ntotmi = inkoop[-1]
+    ntotmi = inkoop[-1].round(0)
     # meerwerk in deze categorie
-    meerw = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Meerwerk'].sum()
+    meerw = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Extra werk'].sum().round(0)
 
     data1 = [
         dict(
@@ -617,15 +636,19 @@ def figures_selected_category(selected_category, filter_selectie):
             hoverinfo="skip",
         ),
         dict(
-            mode="line",
-            x=[revisie.index[3], revisie.index[-1], ],
-            y=[gefactureerd,gefactureerd],
+            type="line",
+            mode='markers',
+            marker=dict(size=12, symbol='triangle-left'),
+            x=[pd.datetime.now()],
+            y=[gefactureerd],
             name="Gefactureerd Totaal",
         ),
         dict(
             type="line",
-            x=[revisie.index[3], revisie.index[-1]],
-            y=[ingeschat, ingeschat],
+            mode='markers',
+            marker=dict(size=12, symbol='triangle-left'),
+            x=[pd.datetime.now()],
+            y=[ingeschat],
             name="Ingeschat",
         ),
     ]
@@ -642,13 +665,13 @@ def figures_selected_category(selected_category, filter_selectie):
     ]
 
     beschrijving_cat = [
-        'gefactureerd=0, deeldf_revisie=0', 
-        'gefactureerd=0, df_revisie>0, ingekocht > ingeschat',
-        'gefactureerd=0, df_revisie>0, ingekocht < ingeschat', 
-        'gefactureerd = df_revisie', 
-        'gefactureerd < df_revisie, ingekocht > ingeschat', 
-        'gefactureerd > df_revisie, ingekocht < ingeschat', 
-        'gefactureerd > df_revisie'
+        'gefactureerd=0, deel revisie=0', 
+        'gefactureerd=0, revisie>0, ingekocht > ingeschat',
+        'gefactureerd=0, revisie>0, ingekocht < ingeschat', 
+        'gefactureerd = revisie', 
+        'gefactureerd < revisie, ingekocht > ingeschat', 
+        'gefactureerd > revisie, ingekocht < ingeschat', 
+        'gefactureerd > revisie'
     ]
 
     layout_graph_selected_projects["title"] = "Categorie " + cat + ':<br>' + ' (' + beschrijving_cat[int(cat[1])-1] + ')'
@@ -657,7 +680,7 @@ def figures_selected_category(selected_category, filter_selectie):
     layout_graph_selected_projects["autosize"] = True
     layout_graph_selected_projects["yaxis"] = dict(title='[m]')
 
-    layout_graph_selected_projects_OHW["title"] = "OHW (op basis van deeldf_revisies)"
+    layout_graph_selected_projects_OHW["title"] = "OHW (op basis van deel revisies)"
     layout_graph_selected_projects_OHW["dragmode"] = "select"
     layout_graph_selected_projects_OHW["showlegend"] = True
     layout_graph_selected_projects_OHW["autosize"] = True
