@@ -3,5 +3,5 @@ export.sh
 __pycache__
 settings.json
 data/
-.pkl
+*.pkl
 assets/
