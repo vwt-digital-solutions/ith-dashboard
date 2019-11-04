@@ -4,27 +4,29 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import json
 sns.set()
 
+
+
 def get_extra_werk():
-    
-    path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Aanlevering Arend/'
-    path_pickles = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Aanlevering Arend/transfer-aschonewille-REF53789/'
-    
+
+    config = json.load(open('./Config/config.json'))
+
     # Geul codes ophalen
-    df_codes = pd.read_excel(path + 'Codes Geul.xlsx')
+    df_codes = pd.read_excel(config['files']['Codes Geul'])
     geul_codes = df_codes[['Tabblad codes VE BIS', 'Soort code']].\
         rename(columns={'Tabblad codes VE BIS':'Codes','Soort code':'omschrijving'})
-    codes_extra = pd.read_excel(path + 'Artikelen_toegevoegd_A.xlsx', 'Blad2')
+    codes_extra = pd.read_excel(config['files']['Extra artikelen'], 'Blad2')
     codes_extra = codes_extra[['ARTIKEL','ARTIKEL_OMSCHRIJVING']].\
         rename(columns={'ARTIKEL':'Codes', 'ARTIKEL_OMSCHRIJVING':'omschrijving'})
     geul_codes = geul_codes.append(codes_extra, sort=True) 
     # inlezen extra werk codes en DP codes
-    df_codes_ew = pd.read_excel(path + 'Codes_extrawerk.xlsx').astype('str')
+    df_codes_ew = pd.read_excel(config['files']['Codes extra werk']).astype('str')
     df_codes_ew.drop(index=[4, 5, 6], inplace=True)
     df_codes_ew.rename(columns={'Unnamed: 0': 'ARTIKEL'}, inplace=True)
     # inlezen alle inkoop orders 
-    inkoop = pd.read_pickle(path_pickles + 'inkooporders.pkl')
+    inkoop = pd.read_pickle(config['path_pickles'] + 'inkooporders.pkl')
     inkoop = inkoop[['INKOOPORDER', 'POSITIE', 'LEVERDATUM', 'INKOPER', 'PROJECT', 'ARTIKEL', 'ARTIKEL_OMSCHRIJVING',
                             'LEVERDATUM_ONTVANGST', 'STATUS', 'HOEVEELHEID_PAKBON', 'PRIJS', 'TOTAALPRIJS', 'Ontvangen']]  # artikel linkt naar codes geul
 
@@ -66,22 +68,19 @@ def get_extra_werk():
 
 def get_data(extra_werk_project): 
 
-    #%% inlezen bestanden:
-    path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Aanlevering Arend/'
-    path_pickles = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Aanlevering Arend/transfer-aschonewille-REF53789/'
+    config = json.load(open('./Config/config.json'))
 
     # Inkooporders 
-    df_inkooporder = pd.read_pickle(
-        path_pickles + 'inkooporders.pkl')  # inkoop data uit BAAN
+    df_inkooporder = pd.read_pickle(config['path_pickles'] + 'inkooporders.pkl')  # inkoop data uit BAAN
     # workflow financiceel
-    df_wff = pd.read_pickle(path_pickles + 'wff.pkl')  # facturatie data uit Workflow
+    df_wff = pd.read_pickle(config['path_pickles'] + 'wff.pkl')  # facturatie data uit Workflow
     # revisie data 
-    df_rev = pd.read_excel(path + 'view_bestanden_deel_eindrevisie.xlsx')
+    df_rev = pd.read_excel(config['files']['(deel)revisies'])
     # codes gerelateerd aan geul werk
-    df_codes = pd.read_excel(path + 'Codes Geul.xlsx')
+    df_codes = pd.read_excel(config['files']['Codes Geul'])
     geul_codes = df_codes[['Tabblad codes VE BIS', 'Soort code']].\
         rename(columns={'Tabblad codes VE BIS':'Codes','Soort code':'omschrijving'})
-    codes_extra = pd.read_excel(path + 'Artikelen_toegevoegd_A.xlsx', 'Blad2')
+    codes_extra = pd.read_excel(config['files']['Extra artikelen'], 'Blad2')
     codes_extra = codes_extra[['ARTIKEL','ARTIKEL_OMSCHRIJVING']].\
         rename(columns={'ARTIKEL':'Codes', 'ARTIKEL_OMSCHRIJVING':'omschrijving'})
     geul_codes = geul_codes.append(codes_extra, sort=True) 
@@ -89,22 +88,19 @@ def get_data(extra_werk_project):
     # dit zijn alle codes geul, exclusief extra werk
 
     # Afgehechte projecten 
-    afgehecht = pd.read_excel(path + 'Conversie MPI + ZPI + Afgehechtbedrag (002).xlsx')
+    afgehecht = pd.read_excel(config['files']['afgehecht'])
     afgehecht = afgehecht[['Op bison', 'Hoe afgehecht']].rename(columns={'Op bison':'Project'})
     afgehecht['Project'] = afgehecht['Project'].astype('str')
 
     # Afgesloten B-nummers
-    b_nummers = pd.read_excel(path + 'Afgesloten B-nummers.xlsx')
+    b_nummers = pd.read_excel(config['files']['b_nummers'])
     b_nummers = b_nummers.astype('str')
-    workflow_excel = pd.read_pickle(path_pickles + 'wfe.pkl')
+    workflow_excel = pd.read_pickle(config['path_pickles'] + 'wfe.pkl')
     workflow_excel = workflow_excel[['Project nr. ', 'Externe referentie']]
     workflow_excel['Externe referentie'] = workflow_excel['Externe referentie'].fillna(0).astype('int64').astype('str')
     workflow_excel = workflow_excel.merge(b_nummers, left_on='Externe referentie', right_on='B-nummer', how='left')
     workflow_excel = workflow_excel[workflow_excel['B-nummer'].notna()]
     afgesloten_b_nummers = list(workflow_excel['Project nr. '].astype('int64').astype('str').unique())
-
-    # Status van de projecten 
-    status = pd.read_excel(path + 'Status projecten.xlsx').astype('str')
 
     #%% Relevante kolommen uit inkooporder, workflow en revisie 
     df_ioa = df_inkooporder[['INKOOPORDER', 'LEVERDATUM', 'INKOPER', 'PROJECT', 'ARTIKEL', 'ARTIKEL_OMSCHRIJVING',
@@ -282,11 +278,11 @@ def categorize(workflow):
     Als input worden alle projecten die in Workflow staan meegenomen. 
     Als ouput het dataframe met Projectnummer en categorie en het aantal meters
     '''
-    
-    path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Aanlevering Arend/'
+
+    config = json.load(open('./Config/config.json'))
 
     # Analyse waar de revisie data een 'daling' weergeeft.
-    df_rev = pd.read_excel(path + 'view_bestanden_deel_eindrevisie.xlsx')
+    df_rev = pd.read_excel(config['files']['(deel)revisies'])
     df_rev = df_rev[['Type', 'Datum', 'Projectnummer', 'Totale geullengte']]
     revisie = df_rev
     revisie = revisie[(~revisie['Projectnummer'].isna()) &\
@@ -334,16 +330,11 @@ def categorize(workflow):
         ((df_OHW['Ingekocht']-df_OHW['Revisie totaal'])>0))
     df_OHW.at[mask, 'Categorie']= 'Cat4'
 
-    # Categorie 5 --> deelrevisie < facturatie & inkoop < deelrevisie
-    mask = ((df_OHW['Categorie']=='') & \
-        ((df_OHW['Revisie totaal']-df_OHW['Gefactureerd totaal'])<=0) & \
-        ((df_OHW['Ingekocht']-df_OHW['Revisie totaal'])<=0))
-    df_OHW.at[mask, 'Categorie']= 'Cat5'
-    # Categorie 6 --> deelrevisie < facturatie & inkoop > deelrevisie
+    # Categorie 5 --> deelrevisie < facturatie & inkoop > deelrevisie
     mask = ((df_OHW['Categorie']=='') & \
         ((df_OHW['Revisie totaal']-df_OHW['Gefactureerd totaal'])<=0) & \
         ((df_OHW['Ingekocht']-df_OHW['Revisie totaal'])>0))
-    df_OHW.at[mask, 'Categorie']= 'Cat6'
+    df_OHW.at[mask, 'Categorie']= 'Cat5'
 
     df_OHW.drop(columns=['Aangeboden','delta_it','delta_ir','delta_ii','delta_tr'], inplace=True)
     workflow = workflow.merge(df_OHW[['Project', 'Categorie']], on='Project', how='left')
@@ -357,10 +348,11 @@ def analyse_revisie():
     Deze functie geeft de revisie data terug met achter iedere lijn of het gehele project 
     een dip heeft. 
     '''
-    path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Aanlevering Arend/'
+
+    config = json.load(open('./Config/config.json'))
 
     # Analyse waar de revisie data een 'daling' weergeeft.
-    df_rev = pd.read_excel(path + 'view_bestanden_deel_eindrevisie.xlsx')
+    df_rev = pd.read_excel(config['files']['(deel)revisies'])
     df_rev = df_rev[['Type', 'Datum', 'Projectnummer', 'Totale geullengte']]
     df_rev = df_rev[(~df_rev['Projectnummer'].isna()) &\
         (~df_rev['Totale geullengte'].isna()) &\
