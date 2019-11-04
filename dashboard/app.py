@@ -19,10 +19,6 @@ from dash.dependencies import Input, Output, State, ClientsideFunction
 import io
 from flask import send_file
 
-
-# Multi-dropdown options
-from controls import COUNTIES, WELL_STATUSES, WELL_TYPES, WELL_COLORS
-
 # get relative data folder
 PATH = pathlib.Path(__file__).parent
 DATA_PATH = PATH.joinpath("data").resolve()
@@ -63,9 +59,6 @@ if AZURE_OAUTH:
         authentication_config['required_scopes']
     )
 
-# Create global chart template
-mapbox_access_token = "pk.eyJ1IjoiamFja2x1byIsImEiOiJjajNlcnh3MzEwMHZtMzNueGw3NWw5ZXF5In0.fk8k06T96Ml9CLGgKmk81w"
-
 layout = dict(
     autosize=True,
     automargin=True,
@@ -75,21 +68,16 @@ layout = dict(
     paper_bgcolor="#F9F9F9",
     legend=dict(font=dict(size=10), orientation="h"),
     title="Satellite Overview",
-    mapbox=dict(
-        accesstoken=mapbox_access_token,
-        style="light",
-        center=dict(lon=-78.05, lat=42.54),
-        zoom=7,
-    ),
 )
+
+# path to files
+pickle_path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Pickles_dashboard/191101_pickles_dashboard/'
 
 # Create app layout
 app.layout = html.Div(
     [
         dcc.Store(id="aggregate_data", data=['1', '1','1','1']),
         dcc.Store(id="aggregate_data2", data=['1', '1','1','1']),
-        # empty Div to trigger javascript file for graph resizing
-        html.Div(id="output-clientside"),
         html.Div(
             [
                 html.Div(
@@ -130,12 +118,28 @@ app.layout = html.Div(
         ),
         html.Div(
             [
+                dcc.Checklist(
+                                options=[
+                                            {'label': 'Vanaf nul punt', 'value': 'NL'},
+                                            {'label': 'Projecten met afgehecht niet meenemen', 'value': 'AF'}
+                                        ],
+                                        id='checklist_filters',
+                                        value=[],
+                                        className="one-third column",
+                                        style={"margin-bottom": "25px"},
+                ),
+            ],
+        ),
+        html.Div(
+            [
                 html.Div(
                     [
                         html.Div(
-                            [html.H6(id="wellText0"), html.P("Eerst analyseren we de totale set van projecten in workflow t.o.v. geulen graven:")],
-                            id="wells0",
-                            className="pretty_container 1 columns",
+                            [
+                                html.H5("Eerst analyseren we de totale set van projecten in workflow t.o.v. geulen graven:",
+                                    style={"margin-top": "0px"}
+                                ),
+                            ]
                         ),
                     ],
                     id="info-container0",
@@ -148,27 +152,28 @@ app.layout = html.Div(
                         html.Div(
                             [
                                 html.Div(
-                                    [html.H6(id="wellText"), html.P("Totaal aantal projecten")],
-                                    id="wells",
-                                    className="mini_container",
+                                    [html.H6(id="info_globaal_0"), html.P("Totaal aantal projecten")],
+                                    id="info_globaal_container0",
+                                    # className="mini_container",
+                                    className="pretty_container 3 columns",
                                 ),
                                 html.Div(
-                                    [html.H6(id="gasText"), html.P("Aantal projecten met OHW")],
-                                    id="gas",
-                                    className="mini_container",
+                                    [html.H6(id="info_globaal_1"), html.P("Aantal projecten met OHW")],
+                                    id="info_globaal_container1",
+                                    className="pretty_container 3 columns",
                                 ),
                                 html.Div(
-                                    [html.H6(id="oilText"), html.P("Aantal projecten met overfacturatie")],
-                                    id="oil",
-                                    className="mini_container",
+                                    [html.H6(id="info_globaal_2"), html.P("Aantal projecten met overfacturatie")],
+                                    id="info_globaal_container2",
+                                    className="pretty_container 3 columns",
                                 ),
                                 html.Div(
-                                    [html.H6(id="waterText"), html.P("Totaal aantal meter OHW (op basis van deelrevisies)")],
-                                    id="water",
-                                    className="mini_container",
+                                    [html.H6(id="info_globaal_3"), html.P("Totaal aantal meter OHW (op basis van deeldf_revisies)")],
+                                    id="info_globaal_container3",
+                                    className="pretty_container 3 columns",
                                 ),
                             ],
-                            id="info-container",
+                            id="info-container1",
                             className="row container-display",
                         ),
                     ],
@@ -176,14 +181,15 @@ app.layout = html.Div(
         html.Div(
             [
                 html.Div(
-                        [dcc.Graph(id="count_graph")],
+                        [dcc.Graph(id="Projecten_globaal_graph")],
                         className="pretty_container 6 columns",
                 ),
                 html.Div(
-                        [dcc.Graph(id="count_graph2")],
+                        [dcc.Graph(id="OHW_globaal_graph")],
                         className="pretty_container 6 columns",
                 ),
             ],
+            id="info-container01",
             className="row flex-display",
             # style={"margin-bottom": "50px"}, 
         ),
@@ -192,12 +198,14 @@ app.layout = html.Div(
                 html.Div(
                     [
                         html.Div(
-                            [html.H6(id="wellText01"), html.P("Vervolgens kan deze set van projecten onderzocht worden op basis van verschillende categorieen, oorzaak OHW:")],
-                            id="wells01",
-                            className="pretty_container 1 columns",
+                            [
+                                html.H5("Vervolgens kan deze set van projecten onderzocht worden op basis van verschillende categorieen, oorzaak OHW:",
+                                    style={"margin-top": "40px"}
+                                ),
+                            ]
                         ),
                     ],
-                    id="info-container01",
+                    id="info-container2",
                     className="row container-display",
                 ),
             ],
@@ -207,31 +215,27 @@ app.layout = html.Div(
                 html.Div(
                     [
                         html.Div(
-                            [html.H6(id="wellText2"), html.P("Aantal meters meerwerk in de geselecteerde categorie")],
+                            [html.H6(id="info_bakje_0"), html.P("Aantal meters meerwerk in de geselecteerde categorie")],
                             id="wells2",
-                            # className="mini_container",
                             className="pretty_container 3 columns",
                         ),
                         html.Div(
-                            [html.H6(id="gasText2"), html.P("Aantal projecten in deze categorie")],
+                            [html.H6(id="info_bakje_1"), html.P("Aantal projecten in deze categorie")],
                             id="gas2",
-                            # className="mini_container",
                             className="pretty_container 3 columns",
                         ),
                         html.Div(
-                            [html.H6(id="oilText2"), html.P("Totaal aantal meters in deze categorie")],
+                            [html.H6(id="info_bakje_2"), html.P("Totaal aantal meters in deze categorie")],
                             id="oil2",
-                            # className="mini_container",
                             className="pretty_container 3 columns",
                         ),
                         html.Div(
-                            [html.H6(id="waterText2"), html.P("Totaal aantal meters OHW  (op basis van deelrevisies)")],
+                            [html.H6(id="info_bakje_3"), html.P("Totaal aantal meters OHW  (op basis van deel revisies)")],
                             id="water2",
-                            # className="mini_container",
                             className="pretty_container 3 columns",
                         ),
                     ],
-                    id="info-container2",
+                    id="info-container3",
                     className="row container-display",
                 ),
             ],
@@ -243,11 +247,11 @@ app.layout = html.Div(
                     className="pretty_container 4 columns",
                 ),
                 html.Div(
-                    [dcc.Graph(id="aggregate_graph")],
+                    [dcc.Graph(id="projecten_bakje_graph")],
                     className="pretty_container 4 columns",
                 ),
                 html.Div(
-                    [dcc.Graph(id="aggregate_graph2")],
+                    [dcc.Graph(id="OHW_bakje_graph")],
                     className="pretty_container 4 columns",
                 ),
             ],
@@ -256,23 +260,14 @@ app.layout = html.Div(
         html.Div(
             [
                 html.Button(
-                    html.A('download excel', id='my-link', href='/download_excel'),
+                    html.A('download excel', id='download-link' , href='/download_excel'),
                     style={
-                    'background-color': '#f9f9f9',  
-                    # # 'color': "#339fcd",
-                    # 'border-radius': '8px',
-                    # 'display': 'inline-block',
-                    # 'padding': '7px',
-                    # 'text-align': 'center',
-                    # 'margin-top': '10px',
-                    # 'margin-bottom': '10px',
-                    # 'margin-left': '10px',
-                    # 'margin-right': '10px',
+                    'background-color': '#f9f9f9',
                     },
                 ),
                 html.Button(
                     'Uitleg categorieën',
-                    id = 'uitleg_cat',
+                    id = 'button_uitleg_cat',
                     style={
                     'background-color': '#f9f9f9',  
                     # # 'color': "#339fcd",
@@ -290,7 +285,6 @@ app.layout = html.Div(
             style={
                 'margin-left': '13px'
             },
-            # className= "pretty_container"
         ),
     ],
     id="mainContainer",
@@ -300,7 +294,7 @@ app.layout = html.Div(
 
 # Download function
 @app.callback(
-    Output('my-link','href'),
+    Output('download-link' ,'href'),
     [
         Input('pie_graph', 'clickData')
     ],
@@ -317,11 +311,11 @@ def update_link(clickData):
 def download_excel():
     #Create DF
     cat = flask.request.args.get('categorie')
-    cat_lookup = {'b1':'Cat1','b2':'Cat2a','b3':'Cat2b','b4':'Cat3','b5':'Cat4a','b6':'Cat4b','b7':'Cat5'}
-    df_OHW = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/df_OHW.pkl')
+    cat_lookup = {'b1':'Cat1','b2':'Cat2','b3':'Cat3','b4':'Cat4','b5':'Cat6'}
+    df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl')
     # Alle projecten met OHW
-    projecten = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]
-    df = projecten[['Project','Gefactureerd totaal', 'Ingeschat', 'Ingekocht','Revisie totaal','Meerwerk', 'Categorie']]
+    projecten = df_workflow[df_workflow['Categorie'] == cat_lookup.get(cat)]
+    df = projecten[['Project','Gefactureerd totaal', 'Aangeboden', 'Ingekocht','df_revisie totaal','Meerwerk', 'Categorie']]
 
     #Convert DF
     strIO = io.BytesIO()
@@ -331,28 +325,23 @@ def download_excel():
     excel_data = strIO.getvalue()
     strIO.seek(0)
 
+    #Name download file
+    Filename = 'Info_project_' + cat_lookup.get(cat) + '_' + dt.datetime.now().strftime('%d-%m-%Y') + '.xlsx'
     return send_file(strIO,
-                     attachment_filename='test.xlsx',
+                     attachment_filename=Filename,
                      as_attachment=True)
 
-
-# Create callbacks
-app.clientside_callback(
-    ClientsideFunction(namespace="clientside", function_name="resize"),
-    Output("output-clientside", "children"),
-    [Input("count_graph", "figure")],
-)
-
+# update info containers
 @app.callback(
     [
-        Output("wellText", "children"),
-        Output("gasText", "children"),
-        Output("oilText", "children"),
-        Output("waterText", "children"),
-        Output("wellText2", "children"),
-        Output("gasText2", "children"),
-        Output("oilText2", "children"),
-        Output("waterText2", "children"),
+        Output("info_globaal_0", "children"),
+        Output("info_globaal_1", "children"),
+        Output("info_globaal_2", "children"),
+        Output("info_globaal_3", "children"),
+        Output("info_bakje_0", "children"),
+        Output("info_bakje_1", "children"),
+        Output("info_bakje_2", "children"),
+        Output("info_bakje_3", "children"),
     ],
     [Input("aggregate_data", "data"),
     Input("aggregate_data2", "data")],
@@ -361,58 +350,73 @@ def update_text(data1, data2):
     return data1[0] + " projecten", data1[1] + " projecten", data1[2] + " projecten", data1[3] + " meters", \
            data2[0] + " meters", data2[1] + " projecten", data2[2] + " meters", data2[3] + " meters" 
 
-# Selectors, main graph -> aggregate graph
+# Callback voor globale grafieken
 @app.callback(
-    [Output("aggregate_graph", "figure"),
-     Output("aggregate_graph2", "figure"),
-     Output("aggregate_data2", "data"),
+    [Output("Projecten_globaal_graph", "figure"),
+    Output("OHW_globaal_graph", "figure"),
+    Output("aggregate_data", "data")
     ],
     [
-        Input("pie_graph", 'clickData'),
-        # Input("well_types", "value"),
-        # Input("year_slider", "value"),
-        # Input("main_graph", "hoverData"),
+        Input("checklist_filters", 'value'),
     ],
 )
-def make_aggregate_figure(selected_data):
+def make_global_figures(filter_selectie):
 
-    cat_lookup = {'b1':'Cat1','b2':'Cat2a','b3':'Cat2b','b4':'Cat3','b5':'Cat4a','b6':'Cat4b','b7':'Cat5'}
-    if selected_data == None:
-        cat = 'b1'
-    else:
-        cat = selected_data.get('points')[0].get('label')
-    
-    layout_aggregate = copy.deepcopy(layout)
-    layout_aggregate2 = copy.deepcopy(layout)
-    
-    df_OHW = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/df_OHW.pkl')
-    inkoop = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/inkoop.pkl')
-    revisie = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/revisie.pkl')
+    layout_global_projects = copy.deepcopy(layout)
+    layout_global_projects_OHW = copy.deepcopy(layout)
 
+    # df_OHW = pd.read_pickle(pickle_path + 'df_OHW.pkl')
+    df_inkoop = pd.read_pickle(pickle_path + 'inkoop.pkl')
+    df_revisie = pd.read_pickle(pickle_path + 'revisie.pkl')
+    df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl')
+    df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
+    # code voor het maken van het nulpunt...projecten met 0 inkoop en 0 gefactureerd...
+    # df_workflow[~((df_workflow['Gefactureerd totaal'] == 0) & (df_workflow['Ingekocht'] == 0))]['Project'].to_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/pcodes_nulpunt_' + dt.datetime.now().strftime('%d-%m-%Y') + '.pkl')
+
+    # if 'AF' in filter_selectie:
+        # codes_af = 
+        # df_workflow = 
+        # df_OHW = 
+
+    if 'NL' in filter_selectie:
+        pcodes_nulpunt = pd.read_pickle(pickle_path + 'pcodes_nulpunt_31-10-2019.pkl')
+        df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)]
+        df_OHW = df_OHW[~df_OHW['Project'].isin(pcodes_nulpunt)]
+        df_OHW = df_OHW.drop(index=1658) # temporary fix for strange project entry?
+        if df_OHW.empty: # alleen nodig voor leeg nulpunt
+            df_OHW.loc['30-10-2019'] = [0,0,0,0,0,0,0,0,0,0]
+            df_OHW.loc['31-10-2019'] = [0,0,0,0,0,0,0,0,0,0]
+            df_OHW.index = pd.to_datetime(df_OHW.index)
+    
     # Alle projecten met OHW
-    projecten = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Project']
-    # Alle inkoop orders 
-    inkoop = inkoop[inkoop['PROJECT'].isin(projecten)]
-    # Revisies
-    projecten = set(projecten) - (set(projecten) - set(revisie.columns))
-    revisie = revisie[list(projecten)]
-    ingeschat = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Ingeschat'].sum()
-    gefactureerd = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Gefactureerd totaal'].sum()
-
-    inkoop = inkoop.groupby('LEVERDATUM_ONTVANGST').agg({'Ontvangen':'sum'})
+    projecten = df_OHW['Project'].unique()
+    # Alle df_inkoop orders 
+    df_inkoop = df_inkoop[df_inkoop['PROJECT'].isin(projecten)]
+    if df_inkoop.empty: # alleen nodig voor leeg nulpunt
+            df_inkoop.loc['30-10-2019'] = [0,0,0,0,0,0,0,0,0,0,0]
+            df_inkoop.loc['31-10-2019'] = [0,0,0,0,0,0,0,0,0,0,0]
+            df_inkoop.index = pd.to_datetime(df_inkoop.index)
+    
+    # df_revisies
+    projecten = set(projecten) - (set(projecten) - set(df_revisie.columns))
+    df_revisie = df_revisie[list(projecten)]
+    
+    # waardes voor grafieken
+    ingeschat = df_OHW['Aangeboden'].sum()
+    gefactureerd = df_OHW['Gefactureerd totaal'].sum()
+    inkoop = df_inkoop.groupby('LEVERDATUM_ONTVANGST').agg({'Ontvangen':'sum'})
     inkoop = inkoop['Ontvangen'].cumsum().asfreq('D', 'ffill')
-    revisie = revisie.sum(axis=1).asfreq('D', 'ffill')
-    delta_1_t = revisie[inkoop.index[0]:inkoop.index[-1]] - inkoop
-
+    revisie = df_revisie.sum(axis=1).asfreq('D', 'ffill')
+    OHW = revisie[inkoop.index[0]:inkoop.index[-1]] - inkoop
+    
     # Totaal aantal projecten:
-    nproj = len(projecten)
+    nproj = df_workflow['Project'].nunique()
     # Nr projecten met negatieve OHW:
-    nOHW = -delta_1_t[-1]
+    nOHW = len(projecten)
     # Nr projecten met positieve OHW:
-    ntotmi = inkoop[-1]
+    noverfac = df_workflow[df_workflow['delta_1'] > 0]['Project'].nunique()
     # totaal OHW meters:
-    totOHW = -df_OHW['delta_1'].sum()
-    meerw = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Meerwerk'].sum()
+    totOHW = -df_OHW['delta_1'].sum().round(0)
 
     data1 = [
         dict(
@@ -427,20 +431,25 @@ def make_aggregate_figure(selected_data):
             type="line",
             x=revisie.index[3:],
             y=revisie,
-            name="Deelrevisies Totaal",
+            name="Deel revisies Totaal",
             opacity=0.5,
             hoverinfo="skip",
         ),
         dict(
-            mode="line",
-            x=[revisie.index[3], revisie.index[-1], ],
-            y=[gefactureerd,gefactureerd],
+            type="line",
+            mode='markers',
+            marker=dict(size=12, symbol='triangle-left'),
+            symbol='<',
+            x=[pd.datetime.now()],
+            y=[gefactureerd],
             name="Gefactureerd Totaal",
         ),
         dict(
             type="line",
-            x=[revisie.index[3], revisie.index[-1]],
-            y=[ingeschat, ingeschat],
+            mode='markers',
+            marker=dict(size=12, symbol='triangle-left'),
+            x=[pd.datetime.now()],
+            y=[ingeschat],
             name="Ingeschat",
         ),
     ]
@@ -448,16 +457,215 @@ def make_aggregate_figure(selected_data):
     data2 = [
         dict(
             type="line",
-            x=delta_1_t.index,
-            y=-delta_1_t,
+            x=OHW.index,
+            y=-OHW,
             name="OHW",
             opacity=0.5,
             hoverinfo="skip",
         ),
     ]
 
-    bakjes_info = [
-        'gefactureerd=0, deelrevisie=0', 
+    layout_global_projects["title"] = "Projecten met OHW"
+    layout_global_projects["dragmode"] = "select"
+    layout_global_projects["showlegend"] = True
+    layout_global_projects["autosize"] = True
+    layout_global_projects["yaxis"] = dict(title='[m]')
+    layout_global_projects["line"]=dict(dash='dash')
+
+    layout_global_projects_OHW["title"] = "OHW (op basis van deel revisies)"
+    layout_global_projects_OHW["dragmode"] = "select"
+    layout_global_projects_OHW["showlegend"] = True
+    layout_global_projects_OHW["autosize"] = True
+    layout_global_projects_OHW["yaxis"] = dict(title='[m]')
+
+    figure1 = dict(data=data1, layout=layout_global_projects)
+    figure2 = dict(data=data2, layout=layout_global_projects_OHW)
+    return [figure1, figure2,[str(nproj), str(nOHW), str(noverfac), str(totOHW)]]
+
+# Callback voor taartdiagram
+@app.callback(
+    Output("pie_graph", "figure"),
+    [
+        Input("checklist_filters", 'value'),
+    ],
+)
+def make_pie_figure(filter_selectie):
+
+    layout_pie = copy.deepcopy(layout)
+
+    df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl')
+    df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
+
+    if 'NL' in filter_selectie:
+        pcodes_nulpunt = pd.read_pickle(pickle_path + 'pcodes_nulpunt_31-10-2019.pkl')
+        df_OHW = df_OHW[~df_OHW['Project'].isin(pcodes_nulpunt)]
+        df_OHW = df_OHW.drop(index=1658) # temporary fix for strange project entry?
+        if df_OHW.empty: # alleen nodig voor leeg nulpunt
+            df_OHW.loc['25-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat1']
+            df_OHW.loc['26-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat2']
+            df_OHW.loc['27-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat3']
+            df_OHW.loc['28-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat4']
+            df_OHW.loc['29-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat5']
+            df_OHW.loc['30-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat6']
+            df_OHW.loc['31-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat7']
+            df_OHW.index = pd.to_datetime(df_OHW.index)
+
+    meters_cat = -df_OHW.groupby('Categorie').agg({'delta_1':'sum'})
+
+    beschrijving_cat = [
+        'moet upgedate!', 
+        'gefactureerd=0, revisie>0, ingekocht > ingeschat',
+        'gefactureerd=0, revisie>0, ingekocht < ingeschat', 
+        'gefactureerd = revisie', 
+        'gefactureerd < revisie, ingekocht > ingeschat', 
+    ] 
+
+    data = [
+        dict(
+            type="pie",
+            labels=["b1", "b2", "b3", "b4", "b5"],
+            values=[meters_cat.loc['Cat1'][0].round(0), meters_cat.loc['Cat2'][0].round(0), meters_cat.loc['Cat3'][0].round(0), meters_cat.loc['Cat4'][0].round(0), \
+                    meters_cat.loc['Cat6'][0].round(0)],
+            # name=["b111", "b2", "b3", "b4", "b5", "b6", "b7"],
+            text=beschrijving_cat,
+            hoverinfo="text",
+            textinfo="value",
+            hole=0.5,
+            marker=dict(colors=["#30304b", "#3b496c", "#3f648d", "#3d81ae", "#339fcd"]),
+            domain={"x": [0, 1], "y": [0.35, 1]},
+        ),
+    ]
+    layout_pie["title"] = "Categorieen OHW (aantal meters):"
+    layout_pie["clickmode"] = "event+select"
+    layout_pie["font"] = dict(color="#777777")
+    layout_pie["legend"] = dict(
+        font=dict(color="#CCCCCC", size="14"), orientation="v", bgcolor="rgba(0,0,0,0)", traceorder='normal', itemclick=False, xanchor='bottom'
+    )
+    layout_pie["showlegend"] = True
+    layout_pie["height"] = 470    
+    figure = dict(data=data, layout=layout_pie)
+    return figure
+
+
+# grafieken voor het geselecteerde bakje in het taartdiagram
+@app.callback(
+    [Output("projecten_bakje_graph", "figure"),
+     Output("OHW_bakje_graph", "figure"),
+     Output("aggregate_data2", "data"),
+    ],
+    [
+        Input("pie_graph", 'clickData'),
+        Input("checklist_filters", 'value')
+    ],
+)
+def figures_selected_category(selected_category, filter_selectie):
+
+    cat_lookup = {'b1':'Cat1','b2':'Cat2','b3':'Cat3','b4':'Cat4','b5':'Cat6'}
+    if selected_category == None:
+        cat = 'b1'
+    else:
+        cat = selected_category.get('points')[0].get('label')
+    
+    layout_graph_selected_projects = copy.deepcopy(layout)
+    layout_graph_selected_projects_OHW = copy.deepcopy(layout)
+    
+    df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl') 
+    df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
+    df_inkoop = pd.read_pickle(pickle_path + 'inkoop.pkl')
+    df_revisie = pd.read_pickle(pickle_path + 'revisie.pkl')
+
+    if 'NL' in filter_selectie:
+        pcodes_nulpunt = pd.read_pickle(pickle_path + 'pcodes_nulpunt_31-10-2019.pkl')
+        df_OHW = df_OHW[~df_OHW['Project'].isin(pcodes_nulpunt)]
+        if df_OHW.empty: # alleen nodig voor leeg nulpunt
+            df_OHW.loc['25-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat1',0]
+            df_OHW.loc['26-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat2a',0]
+            df_OHW.loc['27-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat2b',0]
+            df_OHW.loc['28-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat3',0]
+            df_OHW.loc['29-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat4a',0]
+            df_OHW.loc['30-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat4b',0]
+            df_OHW.loc['31-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat5',0]
+            df_OHW.index = pd.to_datetime(df_OHW.index)
+
+
+    # Alle projecten met OHW
+    projecten = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Project']
+    # Alle inkoop orders 
+    df_inkoop = df_inkoop[df_inkoop['PROJECT'].isin(projecten)]
+    if df_inkoop.empty: # alleen nodig voor leeg nulpunt
+        df_inkoop.loc['30-10-2019'] = [0,0,0,0,0,0,0,0,0,0,0]
+        df_inkoop.loc['31-10-2019'] = [0,0,0,0,0,0,0,0,0,0,0]
+        df_inkoop.index = pd.to_datetime(df_inkoop.index)
+    
+    # revisie
+    projecten = set(projecten) - (set(projecten) - set(df_revisie.columns))
+    df_revisie = df_revisie[list(projecten)]
+    
+    # waardes voor grafieken
+    ingeschat = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Aangeboden'].sum()
+    gefactureerd = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Gefactureerd totaal'].sum()
+    inkoop = df_inkoop.groupby('LEVERDATUM_ONTVANGST').agg({'Ontvangen':'sum'})
+    inkoop = inkoop['Ontvangen'].cumsum().asfreq('D', 'ffill')
+    revisie = df_revisie.sum(axis=1).asfreq('D', 'ffill')
+    OHW = revisie[inkoop.index[0]:inkoop.index[-1]] - inkoop
+
+    # Totaal aantal projecten:
+    nproj = len(projecten)
+    # Aantal meters OHW in deze selectie:
+    mOHW = -OHW[-1].round(0)
+    # Aantal projecten met positieve OHW:
+    ntotmi = inkoop[-1].round(0)
+    # meerwerk in deze categorie
+    meerw = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Extra werk'].sum().round(0)
+
+    data1 = [
+        dict(
+            type="line",
+            x=inkoop.index,
+            y=inkoop,
+            name="Ingekocht",
+            opacity=0.5,
+            hoverinfo="skip",
+        ),
+        dict(
+            type="line",
+            x=revisie.index[3:],
+            y=revisie,
+            name="Deel revisies Totaal",
+            opacity=0.5,
+            hoverinfo="skip",
+        ),
+        dict(
+            type="line",
+            mode='markers',
+            marker=dict(size=12, symbol='triangle-left'),
+            x=[pd.datetime.now()],
+            y=[gefactureerd],
+            name="Gefactureerd Totaal",
+        ),
+        dict(
+            type="line",
+            mode='markers',
+            marker=dict(size=12, symbol='triangle-left'),
+            x=[pd.datetime.now()],
+            y=[ingeschat],
+            name="Ingeschat",
+        ),
+    ]
+
+    data2 = [
+        dict(
+            type="line",
+            x=OHW.index,
+            y=-OHW,
+            name="OHW",
+            opacity=0.5,
+            hoverinfo="skip",
+        ),
+    ]
+
+    beschrijving_cat = [
+        'gefactureerd=0, deel revisie=0', 
         'gefactureerd=0, revisie>0, ingekocht > ingeschat',
         'gefactureerd=0, revisie>0, ingekocht < ingeschat', 
         'gefactureerd = revisie', 
@@ -466,183 +674,21 @@ def make_aggregate_figure(selected_data):
         'gefactureerd > revisie'
     ]
 
-    layout_aggregate["title"] = "Categorie " + cat + ':<br>' + ' (' + bakjes_info[int(cat[1])-1] + ')'
-    layout_aggregate["dragmode"] = "select"
-    layout_aggregate["showlegend"] = True
-    layout_aggregate["autosize"] = True
-    layout_aggregate["yaxis"] = dict(title='[m]')
+    layout_graph_selected_projects["title"] = "Categorie " + cat + ':<br>' + ' (' + beschrijving_cat[int(cat[1])-1] + ')'
+    layout_graph_selected_projects["dragmode"] = "select"
+    layout_graph_selected_projects["showlegend"] = True
+    layout_graph_selected_projects["autosize"] = True
+    layout_graph_selected_projects["yaxis"] = dict(title='[m]')
 
-    layout_aggregate2["title"] = "OHW (op basis van deelrevisies)"
-    layout_aggregate2["dragmode"] = "select"
-    layout_aggregate2["showlegend"] = True
-    layout_aggregate2["autosize"] = True
-    layout_aggregate2["yaxis"] = dict(title='[m]')
+    layout_graph_selected_projects_OHW["title"] = "OHW (op basis van deel revisies)"
+    layout_graph_selected_projects_OHW["dragmode"] = "select"
+    layout_graph_selected_projects_OHW["showlegend"] = True
+    layout_graph_selected_projects_OHW["autosize"] = True
+    layout_graph_selected_projects_OHW["yaxis"] = dict(title='[m]')
 
-    figure1 = dict(data=data1, layout=layout_aggregate)
-    figure2 = dict(data=data2, layout=layout_aggregate2)
-    return [figure1, figure2, [str(meerw), str(nproj), str(ntotmi), str(nOHW)]]
-
-
-# Selectors, main graph -> pie graph
-@app.callback(
-    Output("pie_graph", "figure"),
-    [
-        Input("pie_graph", 'clickData'),
-        # Input("well_types", "value"),
-        # Input("year_slider", "value"),
-    ],
-)
-def make_pie_figure(dummy):
-
-    layout_pie = copy.deepcopy(layout)
-
-    df_OHW = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/df_OHW.pkl')
-    m_b = df_OHW.groupby('Categorie').agg({'delta_1':'sum'})
-    p_b = df_OHW.groupby(['Categorie','Project']).agg({'delta_1':'sum'})
-
-    bakjes_info = [
-        'gefactureerd=0, deelrevisie=0', 
-        'gefactureerd=0, revisie>0, ingekocht > ingeschat',
-        'gefactureerd=0, revisie>0, ingekocht < ingeschat', 
-        'gefactureerd = revisie', 
-        'gefactureerd < revisie, ingekocht > ingeschat', 
-        'gefactureerd > revisie, ingekocht < ingeschat', 
-        'gefactureerd > revisie,'
-    ] 
-
-    data = [
-        dict(
-            type="pie",
-            labels=["b1", "b2", "b3", "b4", "b5", "b6", "b7"],
-            values=[len(p_b.loc['Cat1'][:]), len(p_b.loc['Cat2a'][:]), len(p_b.loc['Cat2b'][:]), len(p_b.loc['Cat3'][:]), \
-                    len(p_b.loc['Cat4a'][:]), len(p_b.loc['Cat4b'][:]), len(p_b.loc['Cat5'][:])],
-            name="OHW meters Breakdown",
-            text=bakjes_info,
-            hoverinfo="text",
-            textinfo="percent",
-            hole=0.5,
-            # marker=dict(colors=["#fac1b7", "#a9bb95", "#92d8d8", "#92d3d8", "#92d9d8", "#92d9d2", "#92d9d3"]),
-            marker=dict(colors=["#30304b", "#3b496c", "#3f648d", "#3d81ae", "#339fcd", "#20bfe8", "#00dfff"]),
-            # domain={"x": [0.55, 1], "y": [0.2, 0.8]},
-            # selectedpoints=None,
-        ),
-    ]
-    layout_pie["title"] = "Categorieen OHW (aantal meters):"
-    layout_pie["clickmode"] = "event+select"
-    layout_pie["font"] = dict(color="#777777")
-    layout_pie["legend"] = dict(
-        font=dict(color="#CCCCCC", size="10"), orientation="h", bgcolor="rgba(0,0,0,0)"
-    )
-    layout_pie["showlegend"] = False
-    figure = dict(data=data, layout=layout_pie)
-    return figure
-
-
-# Selectors -> count graph
-@app.callback(
-    [Output("count_graph", "figure"),
-    Output("count_graph2", "figure"),
-    Output("aggregate_data", "data")
-    ],
-    [
-        Input("pie_graph", 'clickData'),
-        # Input("well_types", "value"),
-        # Input("year_slider", "value"),
-    ],
-)
-def make_count_figure(dummy):
-
-    layout_count = copy.deepcopy(layout)
-    layout_count2 = copy.deepcopy(layout)
-
-    df_OHW = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/df_OHW.pkl')
-    inkoop = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/inkoop.pkl')
-    revisie = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/revisie.pkl')
-    workflow = pd.read_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/workflow.pkl')
-
-    # Alle projecten met OHW
-    projecten = df_OHW['Project'].unique()
-    # Alle inkoop orders 
-    inkoop = inkoop[inkoop['PROJECT'].isin(projecten)]
-    # Revisies
-    projecten = set(projecten) - (set(projecten) - set(revisie.columns))
-    revisie = revisie[list(projecten)]
-    ingeschat = df_OHW['Ingeschat'].sum()
-    gefactureerd = df_OHW['Gefactureerd totaal'].sum()
-
-    inkoop = inkoop.groupby('LEVERDATUM_ONTVANGST').agg({'Ontvangen':'sum'})
-    inkoop = inkoop['Ontvangen'].cumsum().asfreq('D', 'ffill')
-    revisie = revisie.sum(axis=1).asfreq('D', 'ffill')
-    delta_1_t = revisie[inkoop.index[0]:inkoop.index[-1]] - inkoop
-    
-
-    # Totaal aantal projecten:
-    nproj = workflow['Project'].nunique()
-    # Nr projecten met negatieve OHW:
-    nOHW = df_OHW['Project'].nunique()
-    # Nr projecten met positieve OHW:
-    overfacturatie = workflow[workflow['delta_1'] > 0]['Project'].nunique()
-    # totaal OHW meters:
-    totOHW = -df_OHW['delta_1'].sum()
-
-    data1 = [
-        dict(
-            type="line",
-            x=inkoop.index,
-            y=inkoop,
-            name="Ingekocht",
-            opacity=0.5,
-            hoverinfo="skip",
-        ),
-        dict(
-            type="line",
-            x=revisie.index[3:],
-            y=revisie,
-            name="Deelrevisies Totaal",
-            opacity=0.5,
-            hoverinfo="skip",
-        ),
-        dict(
-            mode="line",
-            x=[revisie.index[3], revisie.index[-1], ],
-            y=[gefactureerd,gefactureerd],
-            name="Gefactureerd Totaal",
-        ),
-        dict(
-            type="line",
-            x=[revisie.index[3], revisie.index[-1]],
-            y=[ingeschat, ingeschat],
-            name="Ingeschat",
-        ),
-    ]
-
-    data2 = [
-        dict(
-            type="line",
-            x=delta_1_t.index,
-            y=-delta_1_t,
-            name="OHW",
-            opacity=0.5,
-            hoverinfo="skip",
-        ),
-    ]
-
-    layout_count["title"] = "Projecten met OHW"
-    layout_count["dragmode"] = "select"
-    layout_count["showlegend"] = True
-    layout_count["autosize"] = True
-    layout_count["yaxis"] = dict(title='[m]')
-
-    layout_count2["title"] = "OHW (op basis van deelrevisies)"
-    layout_count2["dragmode"] = "select"
-    layout_count2["showlegend"] = True
-    layout_count2["autosize"] = True
-    layout_count2["yaxis"] = dict(title='[m]')
-
-    figure1 = dict(data=data1, layout=layout_count)
-    figure2 = dict(data=data2, layout=layout_count2)
-    return [figure1, figure2,[str(nproj), str(nOHW), str(overfacturatie), str(totOHW)]]
-
+    figure1 = dict(data=data1, layout=layout_graph_selected_projects)
+    figure2 = dict(data=data2, layout=layout_graph_selected_projects_OHW)
+    return [figure1, figure2, [str(meerw), str(nproj), str(ntotmi), str(mOHW)]]
 
 # Main
 if __name__ == "__main__":
