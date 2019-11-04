@@ -9,10 +9,10 @@ sns.set()
 def get_extra_werk():
     
     path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Aanlevering Arend/'
-    path_pickles = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Pickles_analyse/191101_pickles_analyse/'
+    path_pickles = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Aanlevering Arend/transfer-aschonewille-REF53789/'
     
     # Geul codes ophalen
-    df_codes = pd.read_pickle(path_pickles + 'codes')
+    df_codes = pd.read_excel(path + 'Codes Geul.xlsx')
     geul_codes = df_codes[['Tabblad codes VE BIS', 'Soort code']].\
         rename(columns={'Tabblad codes VE BIS':'Codes','Soort code':'omschrijving'})
     codes_extra = pd.read_excel(path + 'Artikelen_toegevoegd_A.xlsx', 'Blad2')
@@ -24,7 +24,7 @@ def get_extra_werk():
     df_codes_ew.drop(index=[4, 5, 6], inplace=True)
     df_codes_ew.rename(columns={'Unnamed: 0': 'ARTIKEL'}, inplace=True)
     # inlezen alle inkoop orders 
-    inkoop = pd.read_pickle(path_pickles + 'inkooporders')
+    inkoop = pd.read_pickle(path_pickles + 'inkooporders.pkl')
     inkoop = inkoop[['INKOOPORDER', 'POSITIE', 'LEVERDATUM', 'INKOPER', 'PROJECT', 'ARTIKEL', 'ARTIKEL_OMSCHRIJVING',
                             'LEVERDATUM_ONTVANGST', 'STATUS', 'HOEVEELHEID_PAKBON', 'PRIJS', 'TOTAALPRIJS', 'Ontvangen']]  # artikel linkt naar codes geul
 
@@ -68,17 +68,17 @@ def get_data(extra_werk_project):
 
     #%% inlezen bestanden:
     path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Aanlevering Arend/'
-    path_pickles = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Pickles_analyse/191101_pickles_analyse/'
+    path_pickles = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Aanlevering Arend/transfer-aschonewille-REF53789/'
 
     # Inkooporders 
     df_inkooporder = pd.read_pickle(
-        path_pickles + 'inkooporders')  # inkoop data uit BAAN
+        path_pickles + 'inkooporders.pkl')  # inkoop data uit BAAN
     # workflow financiceel
-    df_wff = pd.read_pickle(path_pickles + 'wff')  # facturatie data uit Workflow
+    df_wff = pd.read_pickle(path_pickles + 'wff.pkl')  # facturatie data uit Workflow
     # revisie data 
     df_rev = pd.read_excel(path + 'view_bestanden_deel_eindrevisie.xlsx')
     # codes gerelateerd aan geul werk
-    df_codes = pd.read_pickle(path_pickles + 'codes')
+    df_codes = pd.read_excel(path + 'Codes Geul.xlsx')
     geul_codes = df_codes[['Tabblad codes VE BIS', 'Soort code']].\
         rename(columns={'Tabblad codes VE BIS':'Codes','Soort code':'omschrijving'})
     codes_extra = pd.read_excel(path + 'Artikelen_toegevoegd_A.xlsx', 'Blad2')
@@ -88,6 +88,23 @@ def get_data(extra_werk_project):
     geul_codes
     # dit zijn alle codes geul, exclusief extra werk
 
+    # Afgehechte projecten 
+    afgehecht = pd.read_excel(path + 'Conversie MPI + ZPI + Afgehechtbedrag (002).xlsx')
+    afgehecht = afgehecht[['Op bison', 'Hoe afgehecht']].rename(columns={'Op bison':'Project'})
+    afgehecht['Project'] = afgehecht['Project'].astype('str')
+
+    # Afgesloten B-nummers
+    b_nummers = pd.read_excel(path + 'Afgesloten B-nummers.xlsx')
+    b_nummers = b_nummers.astype('str')
+    workflow_excel = pd.read_pickle(path_pickles + 'wfe.pkl')
+    workflow_excel = workflow_excel[['Project nr. ', 'Externe referentie']]
+    workflow_excel['Externe referentie'] = workflow_excel['Externe referentie'].fillna(0).astype('int64').astype('str')
+    workflow_excel = workflow_excel.merge(b_nummers, left_on='Externe referentie', right_on='B-nummer', how='left')
+    workflow_excel = workflow_excel[workflow_excel['B-nummer'].notna()]
+    afgesloten_b_nummers = list(workflow_excel['Project nr. '].astype('int64').astype('str').unique())
+
+    # Status van de projecten 
+    status = pd.read_excel(path + 'Status projecten.xlsx').astype('str')
 
     #%% Relevante kolommen uit inkooporder, workflow en revisie 
     df_ioa = df_inkooporder[['INKOOPORDER', 'LEVERDATUM', 'INKOPER', 'PROJECT', 'ARTIKEL', 'ARTIKEL_OMSCHRIJVING',
@@ -149,7 +166,7 @@ def get_data(extra_werk_project):
         df_wffa['Pro Forma - Geul graven buiten plan (meters)'] +\
         df_wffa['Afgehecht - Geul graven binnen plan (meters)'] + \
         df_wffa['Afgehecht - Geul graven buiten plan (meters)']
-
+    # aantal goedgekeurde meters per project:
     df_wffa['Goedgekeurd'] = df_wffa['Goedgekeurd – Geul graven Binnen Plan (Meters)'] + \
         df_wffa['Goedgekeurd – Geul graven Buiten Plan (Meters)'] + \
         df_wffa['Extra werk geaccordeerd - Geul graven binnen plan (meters)'] +\
@@ -157,15 +174,20 @@ def get_data(extra_werk_project):
         df_wffa['Afgehecht - Geul graven binnen plan (meters)'] + \
         df_wffa['Afgehecht - Geul graven buiten plan (meters)']
     
-    df_wffa['Afgehecht'] = df_wffa['Afgehecht - Geul graven binnen plan (meters)']+\
-        df_wffa['Afgehecht - Geul graven buiten plan (meters)']
-    
+    # afgehechte projecten  
+    df_wffa = df_wffa.merge(afgehecht, left_on ='BisonNummer', right_on='Project', how='left')
+    df_wffa.drop(columns=['Project'], inplace=True)
+    df_wffa['Hoe afgehecht'].fillna('niet afgehecht', inplace=True)
+
+    # aantal aangeboden meters 
     df_wffa['Aangeboden'] = df_wffa['Aangeboden – Geul graven Binnen Plan (Meters)']+\
         df_wffa['Aangeboden – Geul graven Buiten Plan (Meters)']
     
-    df_wffa['Goedgekeurd'] = df_wffa['Goedgekeurd – Geul graven Binnen Plan (Meters)']+\
-        df_wffa['Goedgekeurd – Geul graven Buiten Plan (Meters)']
-             
+    # valt onder afgesloten B_nummers
+    df_wffa['Afgesloten_b_nummer'] = df_wffa['BisonNummer'].isin(afgesloten_b_nummers)
+
+
+    # drop onnodige kolommen
     df_wffa.drop(columns=[
         'Aangeboden – Geul graven Binnen Plan (Meters)',
         'Aangeboden – Geul graven Buiten Plan (Meters)',
@@ -245,6 +267,13 @@ def get_data(extra_werk_project):
     # AREND: Alle projecten waar Aangeboden op 0 staat, eruit halen. 
     workflow = workflow[workflow['Aangeboden']!=0]
 
+
+    # reorder de kolommen:
+    workflow = workflow[[
+        'Project', 'Aangeboden', 'Goedgekeurd', 
+        'Ingekocht','Gefactureerd totaal', 'Revisie totaal',
+        'delta_1', 'Extra werk', 'Hoe afgehecht', 'Afgesloten_b_nummer']]
+
     return workflow, inkoop, revisie 
 
 def categorize(workflow): 
@@ -320,7 +349,7 @@ def categorize(workflow):
     workflow = workflow.merge(df_OHW[['Project', 'Categorie']], on='Project', how='left')
     workflow['Categorie'] = workflow['Categorie'].fillna('Geen OHW')
 
-    return df_OHW, workflow 
+    return  workflow 
 
 def analyse_revisie():
     '''
@@ -361,6 +390,5 @@ def analyse_revisie():
     df_rev = df_rev[(df_rev['Daling aanwezig']<0)]
     df_rev.sort_values(['Projectnummer','Datum'], inplace=True)
     df_rev.drop(columns=['Project'], inplace=True)
-
 
     return df_rev
