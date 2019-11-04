@@ -71,7 +71,7 @@ layout = dict(
 )
 
 # path to files
-pickle_path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Pickles_dashboard/191101_pickles_dashboard/'
+pickle_path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Aanlevering Arend/transfer-aschonewille-REF53789/191104_pickles_dashboard/'
 
 # Create app layout
 app.layout = html.Div(
@@ -121,7 +121,9 @@ app.layout = html.Div(
                 dcc.Checklist(
                                 options=[
                                             {'label': 'Vanaf nul punt', 'value': 'NL'},
-                                            {'label': 'Projecten met afgehecht niet meenemen', 'value': 'AF'}
+                                            {'label': "Niet meenemen, afgehecht: 'Administratief Afhechting'", 'value': 'AF_1'},
+                                            {'label': "Niet meenemen, afgehecht: 'Berekening restwerkzaamheden'", 'value': 'AF_2'},
+                                            {'label': "Niet meenemen, afgehecht: 'Bis Gereed'", 'value': 'AF_3'},
                                         ],
                                         id='checklist_filters',
                                         value=[],
@@ -230,7 +232,7 @@ app.layout = html.Div(
                             className="pretty_container 3 columns",
                         ),
                         html.Div(
-                            [html.H6(id="info_bakje_3"), html.P("Totaal aantal meters OHW  (op basis van deel revisies)")],
+                            [html.H6(id="info_bakje_3"), html.P("Totaal aantal meters OHW  (op basis van deelrevisies)")],
                             id="water2",
                             className="pretty_container 3 columns",
                         ),
@@ -265,22 +267,22 @@ app.layout = html.Div(
                     'background-color': '#f9f9f9',
                     },
                 ),
-                html.Button(
-                    'Uitleg categorieën',
-                    id = 'button_uitleg_cat',
-                    style={
-                    'background-color': '#f9f9f9',  
-                    # # 'color': "#339fcd",
-                    # 'border-radius': '8px',
-                    # 'display': 'inline-block',
-                    # 'padding': '7px',
-                    # 'text-align': 'center',
-                    # 'margin-top': '10px',
-                    # 'margin-bottom': '10px',
-                    # 'margin-left': '10px',
-                    # 'margin-right': '10px',
-                    },
-                )
+                # html.Button(
+                #     'Uitleg categorieën',
+                #     id = 'button_uitleg_cat',
+                #     style={
+                #     'background-color': '#f9f9f9',  
+                #     # # 'color': "#339fcd",
+                #     # 'border-radius': '8px',
+                #     # 'display': 'inline-block',
+                #     # 'padding': '7px',
+                #     # 'text-align': 'center',
+                #     # 'margin-top': '10px',
+                #     # 'margin-bottom': '10px',
+                #     # 'margin-left': '10px',
+                #     # 'margin-right': '10px',
+                #     },
+                # )
             ],
             style={
                 'margin-left': '13px'
@@ -369,25 +371,29 @@ def make_global_figures(filter_selectie):
     df_inkoop = pd.read_pickle(pickle_path + 'inkoop.pkl')
     df_revisie = pd.read_pickle(pickle_path + 'revisie.pkl')
     df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl')
-    df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
-    # code voor het maken van het nulpunt...projecten met 0 inkoop en 0 gefactureerd...
-    # df_workflow[~((df_workflow['Gefactureerd totaal'] == 0) & (df_workflow['Ingekocht'] == 0))]['Project'].to_pickle('C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/pickles_dashboard/pcodes_nulpunt_' + dt.datetime.now().strftime('%d-%m-%Y') + '.pkl')
 
-    # if 'AF' in filter_selectie:
-        # codes_af = 
-        # df_workflow = 
-        # df_OHW = 
+    # code voor het maken van het nulpunt...projecten met 0 inkoop en 0 gefactureerd...
+    # df_workflow[~((df_workflow['Gefactureerd totaal'] == 0) & (df_workflow['Ingekocht'] == 0))]['Project'].to_pickle(pickle_path + pcodes_nulpunt_' + dt.datetime.now().strftime('%d-%m-%Y') + '.pkl')
+    pcodes_nulpunt = pd.read_pickle(pickle_path + '../../../Nulpunten/pcodes_nulpunt_31-10-2019.pkl')
 
     if 'NL' in filter_selectie:
-        pcodes_nulpunt = pd.read_pickle(pickle_path + 'pcodes_nulpunt_31-10-2019.pkl')
-        df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)]
-        df_OHW = df_OHW[~df_OHW['Project'].isin(pcodes_nulpunt)]
-        df_OHW = df_OHW.drop(index=1658) # temporary fix for strange project entry?
-        if df_OHW.empty: # alleen nodig voor leeg nulpunt
-            df_OHW.loc['30-10-2019'] = [0,0,0,0,0,0,0,0,0,0]
-            df_OHW.loc['31-10-2019'] = [0,0,0,0,0,0,0,0,0,0]
-            df_OHW.index = pd.to_datetime(df_OHW.index)
+        df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)] 
+
+    if 'AF_1' in filter_selectie:
+        df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Administratief Afhechting')]
+    if 'AF_2' in filter_selectie:
+        df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Berekening restwerkzaamheden')]
+    if 'AF_3' in filter_selectie:
+        df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Bis Gereed')]
     
+    df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
+    # df_OHW = df_OHW.drop(index=1658) # temporary fix for strange project entry?
+
+    if df_OHW.empty: # alleen nodig voor leeg nulpunt
+        df_OHW.loc['30-10-2019'] = [0,0,0,0,0,0,0,0,0,0]
+        df_OHW.loc['31-10-2019'] = [0,0,0,0,0,0,0,0,0,0]
+        df_OHW.index = pd.to_datetime(df_OHW.index)
+
     # Alle projecten met OHW
     projecten = df_OHW['Project'].unique()
     # Alle df_inkoop orders 
@@ -431,7 +437,7 @@ def make_global_figures(filter_selectie):
             type="line",
             x=revisie.index[3:],
             y=revisie,
-            name="Deel revisies Totaal",
+            name="deelrevisies Totaal",
             opacity=0.5,
             hoverinfo="skip",
         ),
@@ -472,7 +478,7 @@ def make_global_figures(filter_selectie):
     layout_global_projects["yaxis"] = dict(title='[m]')
     layout_global_projects["line"]=dict(dash='dash')
 
-    layout_global_projects_OHW["title"] = "OHW (op basis van deel revisies)"
+    layout_global_projects_OHW["title"] = "OHW (op basis van deelrevisies)"
     layout_global_projects_OHW["dragmode"] = "select"
     layout_global_projects_OHW["showlegend"] = True
     layout_global_projects_OHW["autosize"] = True
@@ -494,21 +500,30 @@ def make_pie_figure(filter_selectie):
     layout_pie = copy.deepcopy(layout)
 
     df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl')
-    df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
+    pcodes_nulpunt = pd.read_pickle(pickle_path + '../../../Nulpunten/pcodes_nulpunt_31-10-2019.pkl')
 
     if 'NL' in filter_selectie:
-        pcodes_nulpunt = pd.read_pickle(pickle_path + 'pcodes_nulpunt_31-10-2019.pkl')
-        df_OHW = df_OHW[~df_OHW['Project'].isin(pcodes_nulpunt)]
-        df_OHW = df_OHW.drop(index=1658) # temporary fix for strange project entry?
-        if df_OHW.empty: # alleen nodig voor leeg nulpunt
-            df_OHW.loc['25-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat1']
-            df_OHW.loc['26-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat2']
-            df_OHW.loc['27-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat3']
-            df_OHW.loc['28-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat4']
-            df_OHW.loc['29-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat5']
-            df_OHW.loc['30-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat6']
-            df_OHW.loc['31-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat7']
-            df_OHW.index = pd.to_datetime(df_OHW.index)
+        df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)] 
+
+    if 'AF_1' in filter_selectie:
+        df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Administratief Afhechting')]
+    if 'AF_2' in filter_selectie:
+        df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Berekening restwerkzaamheden')]
+    if 'AF_3' in filter_selectie:
+        df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Bis Gereed')]
+    
+    df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
+    # df_OHW = df_OHW.drop(index=1658) # temporary fix for strange project entry?
+  
+    if df_OHW.empty: # alleen nodig voor leeg nulpunt
+        df_OHW.loc['25-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat1']
+        df_OHW.loc['26-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat2']
+        df_OHW.loc['27-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat3']
+        df_OHW.loc['28-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat4']
+        df_OHW.loc['29-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat5']
+        df_OHW.loc['30-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat6']
+        df_OHW.loc['31-10-2019'] = [0,0,0,0,0,0,0,-1,0,'Cat7']
+        df_OHW.index = pd.to_datetime(df_OHW.index)
 
     meters_cat = -df_OHW.groupby('Categorie').agg({'delta_1':'sum'})
 
@@ -517,22 +532,31 @@ def make_pie_figure(filter_selectie):
         'gefactureerd=0, revisie>0, ingekocht > ingeschat',
         'gefactureerd=0, revisie>0, ingekocht < ingeschat', 
         'gefactureerd = revisie', 
-        'gefactureerd < revisie, ingekocht > ingeschat', 
+        'gefactureerd < revisie, ingekocht > ingeschat',
+        'test1',
+        'test2' 
     ] 
+
+    cat1 = meters_cat.loc['Cat1'][0].round(0)
+    cat2 = meters_cat.loc['Cat2'][0].round(0)
+    cat3 = meters_cat.loc['Cat3'][0].round(0)
+    cat4 = meters_cat.loc['Cat4'][0].round(0)
+    cat5 = meters_cat.loc['Cat5'][0].round(0)
+    cat6 = df_workflow['Extra werk'].sum().round(0)
+    cat7 = df_workflow[df_workflow['Afgesloten_b_nummer'] == True]['delta_1'].sum().round(0)
 
     data = [
         dict(
             type="pie",
-            labels=["b1", "b2", "b3", "b4", "b5"],
-            values=[meters_cat.loc['Cat1'][0].round(0), meters_cat.loc['Cat2'][0].round(0), meters_cat.loc['Cat3'][0].round(0), meters_cat.loc['Cat4'][0].round(0), \
-                    meters_cat.loc['Cat6'][0].round(0)],
+            labels=["b1", "b2", "b3", "b4", "b5", "b6", "b7"],
+            values=[cat1, cat2, cat3, cat4, cat5, cat6, cat7],
             # name=["b111", "b2", "b3", "b4", "b5", "b6", "b7"],
             text=beschrijving_cat,
             hoverinfo="text",
             textinfo="value",
             hole=0.5,
-            marker=dict(colors=["#30304b", "#3b496c", "#3f648d", "#3d81ae", "#339fcd"]),
-            domain={"x": [0, 1], "y": [0.35, 1]},
+            marker=dict(colors=["#30304b", "#3b496c", "#3f648d", "#3d81ae", "#339fcd","#388fcd", "#491fcd"]),
+            domain={"x": [0, 1], "y": [0.30, 1]},
         ),
     ]
     layout_pie["title"] = "Categorieen OHW (aantal meters):"
@@ -542,7 +566,7 @@ def make_pie_figure(filter_selectie):
         font=dict(color="#CCCCCC", size="14"), orientation="v", bgcolor="rgba(0,0,0,0)", traceorder='normal', itemclick=False, xanchor='bottom'
     )
     layout_pie["showlegend"] = True
-    layout_pie["height"] = 470    
+    layout_pie["height"] = 500    
     figure = dict(data=data, layout=layout_pie)
     return figure
 
@@ -573,20 +597,24 @@ def figures_selected_category(selected_category, filter_selectie):
     df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
     df_inkoop = pd.read_pickle(pickle_path + 'inkoop.pkl')
     df_revisie = pd.read_pickle(pickle_path + 'revisie.pkl')
+    pcodes_nulpunt = pd.read_pickle(pickle_path + '../../../Nulpunten/pcodes_nulpunt_31-10-2019.pkl')
 
     if 'NL' in filter_selectie:
-        pcodes_nulpunt = pd.read_pickle(pickle_path + 'pcodes_nulpunt_31-10-2019.pkl')
-        df_OHW = df_OHW[~df_OHW['Project'].isin(pcodes_nulpunt)]
-        if df_OHW.empty: # alleen nodig voor leeg nulpunt
-            df_OHW.loc['25-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat1',0]
-            df_OHW.loc['26-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat2a',0]
-            df_OHW.loc['27-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat2b',0]
-            df_OHW.loc['28-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat3',0]
-            df_OHW.loc['29-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat4a',0]
-            df_OHW.loc['30-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat4b',0]
-            df_OHW.loc['31-10-2019'] = [0,0,0,0,0,-1,0,0,0,0,'Cat5',0]
-            df_OHW.index = pd.to_datetime(df_OHW.index)
+        df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)] 
 
+    if 'AF_1' in filter_selectie:
+        df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Administratief Afhechting')]
+    if 'AF_2' in filter_selectie:
+        df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Berekening restwerkzaamheden')]
+    if 'AF_3' in filter_selectie:
+        df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Bis Gereed')]
+    
+    df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
+    # df_OHW = df_OHW.drop(index=1658) # temporary fix for strange project entry?
+    if df_OHW.empty: # alleen nodig voor leeg nulpunt
+        df_OHW.loc['30-10-2019'] = [0,0,0,0,0,0,0,0,0,0]
+        df_OHW.loc['31-10-2019'] = [0,0,0,0,0,0,0,0,0,0]
+        df_OHW.index = pd.to_datetime(df_OHW.index)
 
     # Alle projecten met OHW
     projecten = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Project']
@@ -631,7 +659,7 @@ def figures_selected_category(selected_category, filter_selectie):
             type="line",
             x=revisie.index[3:],
             y=revisie,
-            name="Deel revisies Totaal",
+            name="deelrevisies Totaal",
             opacity=0.5,
             hoverinfo="skip",
         ),
@@ -680,7 +708,7 @@ def figures_selected_category(selected_category, filter_selectie):
     layout_graph_selected_projects["autosize"] = True
     layout_graph_selected_projects["yaxis"] = dict(title='[m]')
 
-    layout_graph_selected_projects_OHW["title"] = "OHW (op basis van deel revisies)"
+    layout_graph_selected_projects_OHW["title"] = "OHW (op basis van deelrevisies)"
     layout_graph_selected_projects_OHW["dragmode"] = "select"
     layout_graph_selected_projects_OHW["showlegend"] = True
     layout_graph_selected_projects_OHW["autosize"] = True
