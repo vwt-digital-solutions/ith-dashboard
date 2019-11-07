@@ -599,7 +599,7 @@ def make_global_figures(filter_selectie):
         ),
         dict(
             type="line",
-            x=revisie.index,
+            x=revisie.index[3:],
             y=revisie,
             name="deelrevisies Totaal",
             opacity=0.5,
