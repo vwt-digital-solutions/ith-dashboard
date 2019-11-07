@@ -14,6 +14,7 @@ import dash_html_components as html
 import dash_table
 from elements import table_styles, button, site_colors, styles, alert, toggle
 from elements import get_filter_options
+import config
 
 from google.cloud import kms_v1
 from dash.dependencies import Input, Output, State, ClientsideFunction
@@ -351,7 +352,7 @@ app.layout = html.Div(
     ],
 )
 def update_link(clickData, selected_filters):
-    print(type(selected_filters))
+    
     if clickData == None:
         cat = '1'
     else:
@@ -369,8 +370,8 @@ def download_excel():
     cat_lookup = {'1':'Cat1','2':'Cat2','3':'Cat3','4':'Cat4','5':'Cat5'}
     # Alle projecten met OHW
 
-    df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl')
-    pcodes_nulpunt = pd.read_pickle(pickle_path + '../../../Nulpunten/pcodes_nulpunt_31-10-2019.pkl')
+    df_workflow = pd.read_csv(config.workflow_csv)
+    pcodes_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
     if 'NL' in filter_selectie:
         df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)] 
     if 'AF_1' in filter_selectie:
@@ -418,8 +419,8 @@ def download_excel():
 def download_excel1():
     filter_selectie = flask.request.args.get('filters')
     
-    df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl')
-    pcodes_nulpunt = pd.read_pickle(pickle_path + '../../../Nulpunten/pcodes_nulpunt_31-10-2019.pkl')
+    df_workflow = pd.read_csv(config.workflow_csv)
+    pcodes_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
     if 'NL' in filter_selectie:
         df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)] 
     if 'AF_1' in filter_selectie:
@@ -467,7 +468,7 @@ def download_excel1():
 def download_excel2():
     filter_selectie = flask.request.args.get('filters')
 
-    df = pd.read_pickle(pickle_path + 'extra_werk_inkooporder.pkl')
+    df = pd.read_csv(config.extra_werk_inkooporder_csv)
     df = df.reset_index()
 
     #Convert DF
@@ -518,14 +519,20 @@ def make_global_figures(filter_selectie):
     layout_global_projects = copy.deepcopy(layout)
     layout_global_projects_OHW = copy.deepcopy(layout)
 
-    # df_OHW = pd.read_pickle(pickle_path + 'df_OHW.pkl')
-    df_inkoop = pd.read_pickle(pickle_path + 'inkoop.pkl')
-    df_revisie = pd.read_pickle(pickle_path + 'revisie.pkl')
-    df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl')
+    df_inkoop = pd.read_csv(config.inkoop_csv)
+    df_revisie = pd.read_csv(config.revisie_csv)
+    df_workflow = pd.read_csv(config.workflow_csv)
+
+    df_inkoop.index = pd.to_datetime(df_inkoop.set_index(['LEVERDATUM_ONTVANGST']).index)
+    df_inkoop.drop(columns=['LEVERDATUM_ONTVANGST'],axis=1, inplace=True)
+    df_revisie.index = pd.to_datetime(df_revisie.set_index(['Datum']).index)
+    df_revisie.drop(columns=['Datum'], axis=1, inplace=True)
+    df_revisie = df_revisie.astype('float')
+    
 
     # code voor het maken van het nulpunt...projecten met 0 inkoop en 0 gefactureerd...
     # df_workflow[~((df_workflow['Gefactureerd totaal'] == 0) & (df_workflow['Ingekocht'] == 0))]['Project'].to_pickle(pickle_path + pcodes_nulpunt_' + dt.datetime.now().strftime('%d-%m-%Y') + '.pkl')
-    pcodes_nulpunt = pd.read_pickle(pickle_path + '../../../Nulpunten/pcodes_nulpunt_31-10-2019.pkl')
+    pcodes_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
 
     if 'NL' in filter_selectie:
         df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)] 
@@ -546,7 +553,7 @@ def make_global_figures(filter_selectie):
         df_OHW.index = pd.to_datetime(df_OHW.index)
 
     # Alle projecten met OHW
-    projecten = df_OHW['Project'].unique()
+    projecten = df_OHW['Project'].unique().astype('str')
     # Alle df_inkoop orders 
     df_inkoop = df_inkoop[df_inkoop['PROJECT'].isin(projecten)]
     if df_inkoop.empty: # alleen nodig voor leeg nulpunt
@@ -586,7 +593,7 @@ def make_global_figures(filter_selectie):
         ),
         dict(
             type="line",
-            x=revisie.index[3:],
+            x=revisie.index,
             y=revisie,
             name="deelrevisies Totaal",
             opacity=0.5,
@@ -650,8 +657,8 @@ def make_pie_figure(filter_selectie):
 
     layout_pie = copy.deepcopy(layout)
 
-    df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl')
-    pcodes_nulpunt = pd.read_pickle(pickle_path + '../../../Nulpunten/pcodes_nulpunt_31-10-2019.pkl')
+    df_workflow = pd.read_csv(config.workflow_csv)
+    pcodes_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
 
     if 'NL' in filter_selectie:
         df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)] 
@@ -739,11 +746,21 @@ def figures_selected_category(selected_category, filter_selectie):
     layout_graph_selected_projects = copy.deepcopy(layout)
     layout_graph_selected_projects_OHW = copy.deepcopy(layout)
     
-    df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl') 
+    df_workflow = pd.read_csv(config.workflow_csv) 
     df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
-    df_inkoop = pd.read_pickle(pickle_path + 'inkoop.pkl')
-    df_revisie = pd.read_pickle(pickle_path + 'revisie.pkl')
-    pcodes_nulpunt = pd.read_pickle(pickle_path + '../../../Nulpunten/pcodes_nulpunt_31-10-2019.pkl')
+    df_inkoop = pd.read_csv(config.inkoop_csv)
+    df_revisie = pd.read_csv(config.revisie_csv)
+    pcodes_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
+
+    df_inkoop.index = pd.to_datetime(df_inkoop.set_index(['LEVERDATUM_ONTVANGST']).index)
+    df_inkoop.drop(columns=['LEVERDATUM_ONTVANGST'],axis=1, inplace=True)
+    df_revisie.index = pd.to_datetime(df_revisie.set_index(['Datum']).index)
+    df_revisie.drop(columns=['Datum'], axis=1, inplace=True)
+
+    # df_inkoop['LEVERDATUM_ONTVANGST'] = pd.to_datetime(df_inkoop['LEVERDATUM_ONTVANGST'])
+    # df_inkoop.set_index(['LEVERDATUM_ONTVANGST'], inplace=True)
+    # df_revisie['Datum'] = pd.to_datetime(df_revisie['Datum'])
+    # df_revisie.set_index(['Datum'], inplace = True)
 
     if 'NL' in filter_selectie:
         df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)] 
@@ -763,7 +780,7 @@ def figures_selected_category(selected_category, filter_selectie):
         df_OHW.index = pd.to_datetime(df_OHW.index)
 
     # Alle projecten met OHW
-    projecten = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Project']
+    projecten = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Project'].astype('str')
     # Alle inkoop orders 
     df_inkoop = df_inkoop[df_inkoop['PROJECT'].isin(projecten)]
     if df_inkoop.empty: # alleen nodig voor leeg nulpunt
@@ -882,9 +899,9 @@ def generate_status_table_ext(selected_category, filter_selectie):
         cat = selected_category.get('points')[0].get('label')
         cat = cat[0]
       
-    df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl') 
+    df_workflow = pd.read_csv(config.workflow_csv) 
     df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
-    pcodes_nulpunt = pd.read_pickle(pickle_path + '../../../Nulpunten/pcodes_nulpunt_31-10-2019.pkl')
+    pcodes_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
 
     if 'NL' in filter_selectie:
         df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)] 

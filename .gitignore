@@ -6,3 +6,5 @@ data/
 *.pkl
 assets/
 config.json
+start_jupyter.py
+config.py

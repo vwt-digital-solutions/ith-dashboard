@@ -6,3 +6,4 @@ Flask==1.1.1
 Flask-Dance==2.2.0
 jwkaas==0.3
 flask_login
+gcsfs==0.3.1
