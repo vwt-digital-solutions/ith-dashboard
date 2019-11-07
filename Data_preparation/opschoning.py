@@ -93,19 +93,25 @@ def get_data(extra_werk_project):
     afgehecht['Project'] = afgehecht['Project'].astype('str')
 
     # Afgesloten B-nummers
-    b_nummers = pd.read_excel(config['files']['b_nummers'])
-    b_nummers = b_nummers.astype('str')
+    b_nummers_afgesloten = pd.read_excel(config['files']['b_nummers'])
+    b_nummers_afgesloten = b_nummers_afgesloten.astype('str')
+    b_nummers_afgesloten = list(b_nummers_afgesloten['B-nummer'].unique())
+    
+    # Workflow excel status inlezen
     workflow_excel = pd.read_pickle(config['path_pickles'] + 'wfe.pkl')
-    workflow_excel = workflow_excel[['Project nr. ', 'Externe referentie']]
-    workflow_excel['Externe referentie'] = workflow_excel['Externe referentie'].fillna(0).astype('int64').astype('str')
-    workflow_excel = workflow_excel.merge(b_nummers, left_on='Externe referentie', right_on='B-nummer', how='left')
-    workflow_excel = workflow_excel[workflow_excel['B-nummer'].notna()]
-    afgesloten_b_nummers = list(workflow_excel['Project nr. '].astype('int64').astype('str').unique())
+    workflow_excel = workflow_excel[['Project nr. ', 'Status']]
+    workflow_excel['Project nr. '] = workflow_excel['Project nr. '].fillna(0).astype('int64').astype('str')
 
+    # Status van projecten
+    status_projecten = pd.read_excel(config['path_pickles'] + 'Status projecten.xlsx')
+    status_projecten = status_projecten.replace('Gereed', 'In uitvoering')
+    status_projecten.rename(columns={'PROJEKT_ALG':'BisonNummer','PROJECTSTATUS':'Projectstatus'}, inplace=True)
+    status_projecten['BisonNummer'] = status_projecten['BisonNummer'].astype('int64').astype('str')
+    
     #%% Relevante kolommen uit inkooporder, workflow en revisie 
     df_ioa = df_inkooporder[['INKOOPORDER', 'LEVERDATUM', 'INKOPER', 'PROJECT', 'ARTIKEL', 'ARTIKEL_OMSCHRIJVING',
                             'LEVERDATUM_ONTVANGST', 'STATUS', 'HOEVEELHEID_PAKBON', 'PRIJS', 'TOTAALPRIJS', 'Ontvangen']]  # artikel linkt naar codes geul
-    df_wffa = df_wff[['BisonNummer',
+    df_wffa = df_wff[['BisonNummer', 'Bnummer',
                     'Aangeboden – Geul graven Binnen Plan (Meters)',
                     'Aangeboden – Geul graven Buiten Plan (Meters)',
                     'Goedgekeurd – Geul graven Binnen Plan (Meters)',
@@ -177,12 +183,21 @@ def get_data(extra_werk_project):
 
     # aantal aangeboden meters 
     df_wffa['Aangeboden'] = df_wffa['Aangeboden – Geul graven Binnen Plan (Meters)']+\
-        df_wffa['Aangeboden – Geul graven Buiten Plan (Meters)']
+    df_wffa['Aangeboden – Geul graven Buiten Plan (Meters)'] +\
+    df_wffa['Afgehecht - Geul graven binnen plan (meters)'] + \
+    df_wffa['Afgehecht - Geul graven buiten plan (meters)'] + \
+    df_wffa['Extra werk geregistreerd - Geul graven binnen plan (meters)'] +\
+    df_wffa['Extra werk geregistreerd - Geul graven buiten plan (meters)']
     
-    # valt onder afgesloten B_nummers
-    df_wffa['Afgesloten_b_nummer'] = df_wffa['BisonNummer'].isin(afgesloten_b_nummers)
+    # Bnummers toevoegen 
+    df_wffa = df_wffa.merge(workflow_excel, left_on='BisonNummer', right_on='Project nr. ', how='left')
+    df_wffa.rename(columns={'Status':'Status_wfe'}, inplace=True)
+    df_wffa['Status_wfe'] = df_wffa['Status_wfe'].fillna('')
 
-
+    # Status projecten toevoegen
+    df_wffa = df_wffa.merge(status_projecten, on='BisonNummer', how='left')
+    df_wffa['Projectstatus'] = df_wffa['Projectstatus'].fillna('')
+    
     # drop onnodige kolommen
     df_wffa.drop(columns=[
         'Aangeboden – Geul graven Binnen Plan (Meters)',
@@ -206,7 +221,8 @@ def get_data(extra_werk_project):
         'Gefactureerd - Geul graven binnen plan (meters)',
         'Gefactureerd - Geul graven buiten plan (meters)',
         'Openstaand - Geul graven binnen plan (meters)',
-        'Openstaand - Geul graven buiten plan (meters)'], inplace=True)
+        'Openstaand - Geul graven buiten plan (meters)',
+        'Project nr. '], inplace=True)
 
     # Deze hebben we nog niet... 
     # df_wffa['Revisie'] =   df_wffa['Gerealiseerd - Geul graven binnen plan (meters)'] + \
@@ -259,16 +275,19 @@ def get_data(extra_werk_project):
     temp_projecten = set(workflow['Project'].unique()) - set(revisie.columns)
     temp = pd.DataFrame(index=revisie.index,columns=list(temp_projecten)).fillna(0)
     revisie = pd.concat([revisie,temp],axis=1)
-
+    
     # AREND: Alle projecten waar Aangeboden op 0 staat, eruit halen. 
     workflow = workflow[workflow['Aangeboden']!=0]
 
+    # remove afgesloten Bnummers
+    workflow['Bnummer'] = workflow['Bnummer'].astype('int64').astype('str')
+    workflow = workflow[(~workflow['Bnummer'].isin(b_nummers_afgesloten))]
 
     # reorder de kolommen:
     workflow = workflow[[
-        'Project', 'Aangeboden', 'Goedgekeurd', 
-        'Ingekocht','Gefactureerd totaal', 'Revisie totaal',
-        'delta_1', 'Extra werk', 'Hoe afgehecht', 'Afgesloten_b_nummer']]
+        'Bnummer','Project', 'Projectstatus', 'Status_wfe','Hoe afgehecht', 
+        'Aangeboden', 'Goedgekeurd', 'Ingekocht','Gefactureerd totaal', 
+        'Revisie totaal', 'delta_1', 'Extra werk']]
 
     return workflow, inkoop, revisie 
 
