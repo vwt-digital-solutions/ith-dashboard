@@ -12,6 +12,8 @@ import authentication
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_table
+from elements import table_styles, button, site_colors, styles, alert, toggle
+from elements import get_filter_options
 
 from google.cloud import kms_v1
 from dash.dependencies import Input, Output, State, ClientsideFunction
@@ -72,7 +74,7 @@ layout = dict(
 )
 
 # path to files
-pickle_path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Aanlevering Arend/transfer-aschonewille-REF53789/191104_pickles_dashboard/'
+pickle_path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Aanlevering Arend/transfer-aschonewille-REF53789/191106_pickles_dashboard/'
 
 # Create app layout
 app.layout = html.Div(
@@ -142,7 +144,6 @@ app.layout = html.Div(
                                             {'label': "Niet meenemen, afgehecht: 'Administratief Afhechting'", 'value': 'AF_1'},
                                             {'label': "Niet meenemen, afgehecht: 'Berekening restwerkzaamheden'", 'value': 'AF_2'},
                                             {'label': "Niet meenemen, afgehecht: 'Bis Gereed'", 'value': 'AF_3'},
-                                            {'label': "Niet meenemen, afgesloten B nummers", 'value': 'AF_4'},
                                         ],
                                         id='checklist_filters',
                                         value=[],
@@ -293,7 +294,19 @@ app.layout = html.Div(
         html.Div(
             [
                 html.Button(
-                    html.A('download excel', id='download-link' , href='/download_excel'),
+                    html.A('download excel (selected categorie)', id='download-link' , href='/download_excel?categorie=1'),
+                    style={
+                    'background-color': '#f9f9f9',
+                    },
+                ),
+                html.Button(
+                    html.A('download excel (all categories)', id='download-link1' , href='/download_excel1'),
+                    style={
+                    'background-color': '#f9f9f9',
+                    },
+                ),
+                html.Button(
+                    html.A('download excel (inkooporders meerwerk)', id='download-link2' , href='/download_excel2'),
                     style={
                     'background-color': '#f9f9f9',
                     },
@@ -327,34 +340,65 @@ app.layout = html.Div(
 
 # Download function
 @app.callback(
-    Output('download-link' ,'href'),
+    [   
+        Output('download-link','href'),
+        Output('download-link1' ,'href'),
+        Output('download-link2' ,'href'),
+    ],
     [
-        Input('pie_graph', 'clickData')
+        Input('pie_graph', 'clickData'),
+        Input("checklist_filters", 'value'),
     ],
 )
-def update_link(clickData):
-
+def update_link(clickData, selected_filters):
+    print(type(selected_filters))
     if clickData == None:
         cat = '1'
     else:
         cat = clickData.get('points')[0].get('label')
         cat = cat[0]
-    return '/download_excel?categorie={}'.format(cat)
+    return ['/download_excel?categorie={}&filters={}'.format(cat,selected_filters),
+            '/download_excel1?filters={}'.format(selected_filters),
+            '/download_excel2?filters={}'.format(selected_filters)]
 
 @app.server.route('/download_excel')
 def download_excel():
     #Create DF
     cat = flask.request.args.get('categorie')
-    cat_lookup = {'1':'Cat1','2':'Cat2','3':'Cat3','4':'Cat4','5':'Cat5','6':'Cat6'}
+    filter_selectie = flask.request.args.get('filters')
+    cat_lookup = {'1':'Cat1','2':'Cat2','3':'Cat3','4':'Cat4','5':'Cat5'}
     # Alle projecten met OHW
 
     df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl')
-    projecten = df_workflow[df_workflow['Categorie'] == cat_lookup.get(cat)]
-    df = projecten[['Project','Gefactureerd totaal', 'Aangeboden', 'Ingekocht','Extra werk', 'Categorie', 'Hoe afgehecht']]
+    pcodes_nulpunt = pd.read_pickle(pickle_path + '../../../Nulpunten/pcodes_nulpunt_31-10-2019.pkl')
+    if 'NL' in filter_selectie:
+        df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)] 
+    if 'AF_1' in filter_selectie:
+        df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Administratief Afhechting')]
+    if 'AF_2' in filter_selectie:
+        df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Berekening restwerkzaamheden')]
+    if 'AF_3' in filter_selectie:
+        df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Bis Gereed')]
 
-    if cat_lookup.get(cat) == 'Cat6':
-        df = pd.read_pickle(pickle_path + 'extra_werk_inkooporders.pkl')
-        df = df.reset_index()
+    df = df_workflow[df_workflow['Categorie'] == cat_lookup.get(cat)]
+    
+    # add categorie description and solution action
+    df_add = pd.DataFrame(columns=['Categorie','Beschrijving categorie','Oplosactie'])
+    df_add['Categorie'] = ['Cat1', 'Cat2','Cat3','Cat4','Cat5']
+    df_add['Beschrijving categorie'] = ["1: Onbetrouwbare 'daling' in deelrevisie",
+                "2: Aangeboden > 0, Goedgekeurd = 0", 
+                "3: Deelrevisie > Facturatie, Inkoop",
+                "4: Deelrevisie > Facturatie maar < Inkoop",
+                "5: Deelrevisie < Facturatie, Inkoop"]
+    df_add['Oplosactie'] = ["Terugkoppelen naar TPG",
+                "Vertraging KPN", 
+                "Factureren extra werk",
+                "Factureren extra werk",
+                "Check koppeling WF-Organize"]
+    df = df.merge(df_add,on='Categorie',how='left').sort_values(by='delta_1',ascending=True)
+    
+    # select output columns
+    # df = df[['Project','Gefactureerd totaal', 'Aangeboden', 'Ingekocht','Extra werk', 'Categorie', 'Hoe afgehecht']]
 
     #Convert DF
     strIO = io.BytesIO()
@@ -366,6 +410,76 @@ def download_excel():
 
     #Name download file
     Filename = 'Info_project_' + cat_lookup.get(cat) + '_' + dt.datetime.now().strftime('%d-%m-%Y') + '.xlsx'
+    return send_file(strIO,
+                     attachment_filename=Filename,
+                     as_attachment=True)
+
+@app.server.route('/download_excel1')
+def download_excel1():
+    filter_selectie = flask.request.args.get('filters')
+    
+    df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl')
+    pcodes_nulpunt = pd.read_pickle(pickle_path + '../../../Nulpunten/pcodes_nulpunt_31-10-2019.pkl')
+    if 'NL' in filter_selectie:
+        df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)] 
+    if 'AF_1' in filter_selectie:
+        df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Administratief Afhechting')]
+    if 'AF_2' in filter_selectie:
+        df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Berekening restwerkzaamheden')]
+    if 'AF_3' in filter_selectie:
+        df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Bis Gereed')]
+    
+    df = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
+    
+    # add categorie description and solution action
+    df_add = pd.DataFrame(columns=['Categorie','Beschrijving categorie','Oplosactie'])
+    df_add['Categorie'] = ['Cat1', 'Cat2','Cat3','Cat4','Cat5']
+    df_add['Beschrijving categorie'] = ["1: Onbetrouwbare 'daling' in deelrevisie",
+                "2: Aangeboden > 0, Goedgekeurd = 0", 
+                "3: Deelrevisie > Facturatie, Inkoop",
+                "4: Deelrevisie > Facturatie maar < Inkoop",
+                "5: Deelrevisie < Facturatie, Inkoop"]
+    df_add['Oplosactie'] = ["Terugkoppelen naar TPG",
+                "Vertraging KPN", 
+                "Factureren extra werk",
+                "Factureren extra werk",
+                "Check koppeling WF-Organize"]
+    df = df.merge(df_add,on='Categorie',how='left').sort_values(by='delta_1',ascending=True)
+    
+    # select output columns
+    # df = df[['Project','Gefactureerd totaal', 'Aangeboden', 'Ingekocht','Extra werk', 'Categorie', 'Hoe afgehecht']]
+
+    #Convert DF
+    strIO = io.BytesIO()
+    excel_writer = pd.ExcelWriter(strIO, engine="xlsxwriter")
+    df.to_excel(excel_writer, sheet_name="sheet1", index=False)
+    excel_writer.save()
+    excel_data = strIO.getvalue()
+    strIO.seek(0)
+
+    #Name download file
+    Filename = 'Info_project_all_' + dt.datetime.now().strftime('%d-%m-%Y') + '.xlsx'
+    return send_file(strIO,
+                     attachment_filename=Filename,
+                     as_attachment=True)
+
+@app.server.route('/download_excel2')
+def download_excel2():
+    filter_selectie = flask.request.args.get('filters')
+
+    df = pd.read_pickle(pickle_path + 'extra_werk_inkooporder.pkl')
+    df = df.reset_index()
+
+    #Convert DF
+    strIO = io.BytesIO()
+    excel_writer = pd.ExcelWriter(strIO, engine="xlsxwriter")
+    df.to_excel(excel_writer, sheet_name="sheet1", index=False)
+    excel_writer.save()
+    excel_data = strIO.getvalue()
+    strIO.seek(0)
+
+    #Name download file
+    Filename = 'Info_inkooporder_meerwerk_' + dt.datetime.now().strftime('%d-%m-%Y') + '.xlsx'
     return send_file(strIO,
                      attachment_filename=Filename,
                      as_attachment=True)
@@ -422,8 +536,6 @@ def make_global_figures(filter_selectie):
         df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Berekening restwerkzaamheden')]
     if 'AF_3' in filter_selectie:
         df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Bis Gereed')]
-    if 'AF_4' in filter_selectie:
-        df_workflow = df_workflow[~(df_workflow['Afgesloten_b_nummer'] == True)]
     
     df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
     # df_OHW = df_OHW.drop(index=1658) # temporary fix for strange project entry?
@@ -550,8 +662,6 @@ def make_pie_figure(filter_selectie):
         df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Berekening restwerkzaamheden')]
     if 'AF_3' in filter_selectie:
         df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Bis Gereed')]
-    if 'AF_4' in filter_selectie:
-        df_workflow = df_workflow[~(df_workflow['Afgesloten_b_nummer'] == True)]
     
     df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
     # df_OHW = df_OHW.drop(index=1658) # temporary fix for strange project entry?
@@ -568,32 +678,30 @@ def make_pie_figure(filter_selectie):
 
     meters_cat = -df_OHW.groupby('Categorie').agg({'delta_1':'sum'})
 
-    beschrijving_cat = ["1: Onbetrouwbare 'daling' in deelrevisie; terugkoppelen naar TPG",
-    "2: Aangeboden > 0, Goedgekeurd = 0; vertraging KPN", 
-    "3: Deelrevisie > Facturatie, Inkoop; factureren extra werk",
-    "4: Deelrevisie > Facturatie maar < Inkoop; factureren extra werk",
-    "5: Deelrevisie < Facturatie, Inkoop; check koppeling WF-Organize",
-    "6: Meerwerk; factureren als extra werk"] 
+    beschrijving_cat = ["1: Onbetrouwbare 'daling' in deelrevisie",
+    "2: Aangeboden > 0, Goedgekeurd = 0", 
+    "3: Deelrevisie > Facturatie, Inkoop",
+    "4: Deelrevisie > Facturatie maar < Inkoop",
+    "5: Deelrevisie < Facturatie, Inkoop"] 
 
     cat1 = meters_cat.loc['Cat1'][0].round(0)
     cat2 = meters_cat.loc['Cat2'][0].round(0)
     cat3 = meters_cat.loc['Cat3'][0].round(0)
     cat4 = meters_cat.loc['Cat4'][0].round(0)
     cat5 = meters_cat.loc['Cat5'][0].round(0)
-    cat6 = df_workflow['Extra werk'].sum().round(0)
-
+    
     data = [
         dict(
             type="pie",
-            # labels=["b1", "b2", "b3", "b4", "b5", "b6", "b7"],
+            # labels=["b1", "b2", "b3", "b4", "b5", "b6"],
             labels=beschrijving_cat,
-            values=[cat1, cat2, cat3, cat4, cat5, cat6],
-            # name=["test", "b2", "b3", "b4", "b5", "b6", "b7"],
+            values=[cat1, cat2, cat3, cat4, cat5],
+            # name=["test", "b2", "b3", "b4", "b5", "b6"],
             # text=beschrijving_cat,
             hoverinfo="percent",
             textinfo="value",
             hole=0.5,
-            marker=dict(colors=['#003f5c', '#374c80', '#7a5195',  '#bc5090',  '#ef5675',  '#ff764a']),#, '#ffa600']),
+            marker=dict(colors=['#003f5c', '#374c80', '#7a5195',  '#bc5090',  '#ef5675']),#, '#ffa600']),
             domain={"x": [0, 1], "y": [0.30, 1]},
         ),
     ]
@@ -621,8 +729,7 @@ def make_pie_figure(filter_selectie):
     ],
 )
 def figures_selected_category(selected_category, filter_selectie):
-
-    cat_lookup = {'1':'Cat1','2':'Cat2','3':'Cat3','4':'Cat4','5':'Cat5','6':'Cat6'}
+    cat_lookup = {'1':'Cat1','2':'Cat2','3':'Cat3','4':'Cat4','5':'Cat5'}
     if selected_category == None:
         cat = '1'
     else:
@@ -647,8 +754,6 @@ def figures_selected_category(selected_category, filter_selectie):
         df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Berekening restwerkzaamheden')]
     if 'AF_3' in filter_selectie:
         df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Bis Gereed')]
-    if 'AF_4' in filter_selectie:
-        df_workflow = df_workflow[~(df_workflow['Afgesloten_b_nummer'] == True)]
     
     df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
     # df_OHW = df_OHW.drop(index=1658) # temporary fix for strange project entry?
@@ -733,12 +838,17 @@ def figures_selected_category(selected_category, filter_selectie):
         ),
     ]
 
-    beschrijving_cat = ["1: Onbetrouwbare 'daling' in deelrevisie; terugkoppelen naar TPG",
-    "2: Aangeboden > 0, Goedgekeurd = 0; vertraging KPN", 
-    "3: Deelrevisie > Facturatie, Inkoop; factureren extra werk",
-    "4: Deelrevisie > Facturatie maar < Inkoop; factureren extra werk",
-    "5: Deelrevisie < Facturatie, Inkoop; check koppeling WF-Organize",
-    "6: Meerwerk; factureren als extra werk"]
+    # beschrijving_cat = ["1: Onbetrouwbare 'daling' in deelrevisie; terugkoppelen naar TPG",
+    # "2: Aangeboden > 0, Goedgekeurd = 0; vertraging KPN", 
+    # "3: Deelrevisie > Facturatie, Inkoop; factureren extra werk",
+    # "4: Deelrevisie > Facturatie maar < Inkoop; factureren extra werk",
+    # "5: Deelrevisie < Facturatie, Inkoop; check koppeling WF-Organize"]
+
+    beschrijving_cat = ["1: Onbetrouwbare 'daling' in deelrevisie",
+    "2: Aangeboden > 0, Goedgekeurd = 0", 
+    "3: Deelrevisie > Facturatie, Inkoop",
+    "4: Deelrevisie > Facturatie maar < Inkoop",
+    "5: Deelrevisie < Facturatie, Inkoop"] 
 
     layout_graph_selected_projects["title"] = "Categorie " + cat + ':<br>' + ' (' + beschrijving_cat[int(cat[0])-1][3:] + ')'
     layout_graph_selected_projects["dragmode"] = "select"
@@ -785,8 +895,6 @@ def generate_status_table_ext(selected_category, filter_selectie):
         df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Berekening restwerkzaamheden')]
     if 'AF_3' in filter_selectie:
         df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Bis Gereed')]
-    if 'AF_4' in filter_selectie:
-        df_workflow = df_workflow[~(df_workflow['Afgesloten_b_nummer'] == True)]
     
     df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
     # df_OHW = df_OHW.drop(index=1658) # temporary fix for strange project entry?
@@ -797,22 +905,33 @@ def generate_status_table_ext(selected_category, filter_selectie):
 
     # Alle projecten met OHW
     df_out = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]
-    
+
+    # add categorie description and solution action
+    df_add = pd.DataFrame(columns=['Categorie','Beschrijving categorie','Oplosactie'])
+    df_add['Categorie'] = ['Cat1', 'Cat2','Cat3','Cat4','Cat5']
+    df_add['Beschrijving categorie'] = ["1: Onbetrouwbare 'daling' in deelrevisie",
+                "2: Aangeboden > 0, Goedgekeurd = 0", 
+                "3: Deelrevisie > Facturatie, Inkoop",
+                "4: Deelrevisie > Facturatie maar < Inkoop",
+                "5: Deelrevisie < Facturatie, Inkoop"]
+    df_add['Oplosactie'] = ["Terugkoppelen naar TPG",
+                "Vertraging KPN", 
+                "Factureren extra werk",
+                "Factureren extra werk",
+                "Check koppeling WF-Organize"]
+    df_out = df_out.merge(df_add,on='Categorie',how='left').sort_values(by='delta_1',ascending=True)
+
     if selected_category == None:
         return [html.P()]
-
-    if cat == '6':
-        df_out = pd.read_pickle(pickle_path + 'extra_werk_inkooporders.pkl')
-        df_out = df_out.reset_index()
 
     return [       
             dash_table.DataTable(
                 columns=[{"name": i, "id": i} for i in df_out.columns],
                 data=df_out.to_dict("rows"),
                 style_table={'overflowX': 'auto'},
-                # style_header=table_styles['header'],
-                # style_cell=table_styles['cell']['action'],
-                # style_filter=table_styles['filter'],
+                style_header=table_styles['header'],
+                style_cell=table_styles['cell']['action'],
+                style_filter=table_styles['filter'],
                 )
     ]
 
