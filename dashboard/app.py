@@ -86,6 +86,7 @@ app.layout = html.Div(
         dcc.Store(id="data_workflow"),
         dcc.Store(id="data_inkoop"),
         dcc.Store(id="data_revisie"),
+
         html.Div(
             [
                 html.Div(
@@ -533,8 +534,6 @@ def make_global_figures(filter_selectie):
     layout_global_projects_OHW = copy.deepcopy(layout)
 
     df_inkoop = pd.read_csv(config.inkoop_csv)
-    # path = 'C:/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/Data/Aanlevering Arend/transfer-aschonewille-REF53789/191106_pickles_dashboard/'
-    # df_inkoop = pd.read_csv(path + 'inkoop.csv')
     df_revisie = pd.read_csv(config.revisie_csv)
     df_workflow = pd.read_csv(config.workflow_csv)
 
@@ -660,8 +659,13 @@ def make_global_figures(filter_selectie):
     figure1 = dict(data=data1, layout=layout_global_projects)
     figure2 = dict(data=data2, layout=layout_global_projects_OHW)
     stats = {'0':str(nproj), '1':str(nOHW),'2':str(noverfac),'3':str(totOHW)}
-    df_inkoop.index = df_inkoop.index.map(str)
+    
+    df_inkoop.reset_index(inplace=True)
+    df_inkoop['LEVERDATUM_ONTVANGST'] = df_inkoop['LEVERDATUM_ONTVANGST'].astype('str')
     df_revisie.index = df_revisie.index.map(str)
+
+
+
     return [figure1, figure2, stats, \
         df_workflow.to_dict(), df_inkoop.to_dict(), df_revisie.to_dict()]
 
@@ -679,7 +683,6 @@ def make_pie_figure(filter_selectie, df_workflow):
         raise PreventUpdate
 
     layout_pie = copy.deepcopy(layout)
-    # df_workflow = pd.read_csv(config.workflow_csv)
     df_workflow = pd.DataFrame(df_workflow)
     pcodes_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
 
@@ -779,19 +782,16 @@ def figures_selected_category(selected_category, filter_selectie, df_workflow, d
     
     layout_graph_selected_projects = copy.deepcopy(layout)
     layout_graph_selected_projects_OHW = copy.deepcopy(layout)
-    
-    # df_workflow = pd.read_csv(config.workflow_csv)
+
     df_workflow = pd.DataFrame(df_workflow) 
     df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
-    # df_inkoop = pd.read_csv(config.inkoop_csv)
     df_inkoop = pd.DataFrame(df_inkoop)
-    # df_revisie = pd.read_csv(config.revisie_csv)
     df_revisie = pd.DataFrame(df_revisie)
     pcodes_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
 
-    # df_inkoop.index = pd.to_datetime(df_inkoop.set_index(['LEVERDATUM_ONTVANGST']).index)
-    # df_inkoop.drop(columns=['LEVERDATUM_ONTVANGST'],axis=1, inplace=True)
-    df_inkoop.index = pd.to_datetime(df_inkoop.index)
+    df_inkoop.index = pd.to_datetime(df_inkoop.set_index(['LEVERDATUM_ONTVANGST']).index)
+    df_inkoop.drop(columns=['LEVERDATUM_ONTVANGST'],axis=1, inplace=True)
+    # df_inkoop.index = pd.to_datetime(df_inkoop.index)
     # df_revisie.index = pd.to_datetime(df_revisie.set_index(['Datum']).index)
     # df_revisie.drop(columns=['Datum'], axis=1, inplace=True)
     df_revisie.index = pd.to_datetime(df_revisie.index)
@@ -834,8 +834,8 @@ def figures_selected_category(selected_category, filter_selectie, df_workflow, d
     # waardes voor grafieken
     ingeschat = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Aangeboden'].sum()
     gefactureerd = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Gefactureerd totaal'].sum()
-    # inkoop = df_inkoop.groupby('LEVERDATUM_ONTVANGST').agg({'Ontvangen':'sum'})
-    inkoop = df_inkoop.groupby(df_inkoop.index).agg({'Ontvangen':'sum'})
+    inkoop = df_inkoop.groupby('LEVERDATUM_ONTVANGST').agg({'Ontvangen':'sum'})
+    # inkoop = df_inkoop.groupby(df_inkoop.index).agg({'Ontvangen':'sum'})
     inkoop = inkoop['Ontvangen'].cumsum().asfreq('D', 'ffill')
     revisie = df_revisie.sum(axis=1).asfreq('D', 'ffill')
     OHW = revisie[inkoop.index[0]:inkoop.index[-1]] - inkoop
@@ -927,10 +927,16 @@ def figures_selected_category(selected_category, filter_selectie, df_workflow, d
         Output('status_table_ext', 'children'),
         [
             Input("pie_graph", 'clickData'),
-            Input("checklist_filters", 'value')
+            Input("checklist_filters", 'value'),
+            Input("data_workflow", 'data')
         ],
 )
-def generate_status_table_ext(selected_category, filter_selectie):  
+def generate_status_table_ext(selected_category, filter_selectie, df_workflow): 
+
+    if df_workflow == None:
+        raise PreventUpdate
+
+    df_workflow = pd.DataFrame(df_workflow)
 
     cat_lookup = {'1':'Cat1','2':'Cat2','3':'Cat3','4':'Cat4','5':'Cat5','6':'Cat6'}
     if selected_category == None:
@@ -939,7 +945,7 @@ def generate_status_table_ext(selected_category, filter_selectie):
         cat = selected_category.get('points')[0].get('label')
         cat = cat[0]
       
-    df_workflow = pd.read_csv(config.workflow_csv) 
+    # df_workflow = pd.read_csv(config.workflow_csv) 
     df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
     pcodes_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
 
