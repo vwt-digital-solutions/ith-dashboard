@@ -140,14 +140,14 @@ app.layout = html.Div(
             [
                 dcc.Checklist(
                                 options=[
-                                            {'label': 'Vanaf nul punt', 'value': 'NL'},
-                                            {'label': "Niet meenemen, afgehecht: 'Administratief Afhechting'", 'value': 'AF_1'},
-                                            {'label': "Niet meenemen, afgehecht: 'Berekening restwerkzaamheden'", 'value': 'AF_2'},
-                                            {'label': "Niet meenemen, afgehecht: 'Bis Gereed'", 'value': 'AF_3'},
+                                            {'label': 'Vanaf nul punt [NL]', 'value': 'NL'},
+                                            {'label': "Niet meenemen, afgehecht: 'Administratief Afhechting' [AF_1]", 'value': 'AF_1'},
+                                            {'label': "Niet meenemen, afgehecht: 'Berekening restwerkzaamheden' [AF_2]", 'value': 'AF_2'},
+                                            {'label': "Niet meenemen, afgehecht: 'Bis Gereed' [AF_3]", 'value': 'AF_3'},
                                         ],
                                         id='checklist_filters',
-                                        value=[],
-                                        className="one-third column",
+                                        value=['AF_1','AF_2','AF_3'],
+                                        className="one-half column",
                                         style={"margin-bottom": "25px"},
                 ),
             ],
@@ -294,19 +294,19 @@ app.layout = html.Div(
         html.Div(
             [
                 html.Button(
-                    html.A('download excel (selected categorie)', id='download-link' , href='/download_excel?categorie=1'),
+                    html.A('download excel (selected categorie)', id='download-link' , href="/download_excel?categorie=1&filters=['empty']"),
                     style={
                     'background-color': '#f9f9f9',
                     },
                 ),
                 html.Button(
-                    html.A('download excel (all categories)', id='download-link1' , href='/download_excel1'),
+                    html.A('download excel (all categories)', id='download-link1' , href="/download_excel1?filters=['empty']"),
                     style={
                     'background-color': '#f9f9f9',
                     },
                 ),
                 html.Button(
-                    html.A('download excel (inkooporders meerwerk)', id='download-link2' , href='/download_excel2'),
+                    html.A('download excel (inkooporders meerwerk)', id='download-link2' , href="/download_excel2?filters=['empty']"),
                     style={
                     'background-color': '#f9f9f9',
                     },
@@ -351,12 +351,17 @@ app.layout = html.Div(
     ],
 )
 def update_link(clickData, selected_filters):
-    print(type(selected_filters))
     if clickData == None:
         cat = '1'
     else:
         cat = clickData.get('points')[0].get('label')
         cat = cat[0]
+    
+    if selected_filters == None:
+        selected_filters = ['empty']
+
+    print()
+
     return ['/download_excel?categorie={}&filters={}'.format(cat,selected_filters),
             '/download_excel1?filters={}'.format(selected_filters),
             '/download_excel2?filters={}'.format(selected_filters)]
@@ -366,9 +371,12 @@ def download_excel():
     #Create DF
     cat = flask.request.args.get('categorie')
     filter_selectie = flask.request.args.get('filters')
+
+    print(filter_selectie)
+
     cat_lookup = {'1':'Cat1','2':'Cat2','3':'Cat3','4':'Cat4','5':'Cat5'}
     # Alle projecten met OHW
-
+    print(filter_selectie)
     df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl')
     pcodes_nulpunt = pd.read_pickle(pickle_path + '../../../Nulpunten/pcodes_nulpunt_31-10-2019.pkl')
     if 'NL' in filter_selectie:
@@ -395,10 +403,8 @@ def download_excel():
                 "Factureren extra werk",
                 "Factureren extra werk",
                 "Check koppeling WF-Organize"]
-    df = df.merge(df_add,on='Categorie',how='left').sort_values(by='delta_1',ascending=True)
-    
-    # select output columns
-    # df = df[['Project','Gefactureerd totaal', 'Aangeboden', 'Ingekocht','Extra werk', 'Categorie', 'Hoe afgehecht']]
+    df = df.merge(df_add,on='Categorie',how='left').sort_values(by='delta_1',ascending=True).rename(columns={'delta_1':'OHW'})
+    df = df[['Bnummer','Project','Projectstatus','Hoe afgehecht','Aangeboden','Goedgekeurd','Ingekocht','Gefactureerd totaal','Revisie totaal','OHW', 'Extra werk', 'Beschrijving categorie','Oplosactie']]
 
     #Convert DF
     strIO = io.BytesIO()
@@ -409,7 +415,7 @@ def download_excel():
     strIO.seek(0)
 
     #Name download file
-    Filename = 'Info_project_' + cat_lookup.get(cat) + '_' + dt.datetime.now().strftime('%d-%m-%Y') + '.xlsx'
+    Filename = 'Info_project_' + cat_lookup.get(cat) + '_'  + 'filters_' + filter_selectie + '_' + dt.datetime.now().strftime('%d-%m-%Y') + '.xlsx'
     return send_file(strIO,
                      attachment_filename=Filename,
                      as_attachment=True)
@@ -444,10 +450,8 @@ def download_excel1():
                 "Factureren extra werk",
                 "Factureren extra werk",
                 "Check koppeling WF-Organize"]
-    df = df.merge(df_add,on='Categorie',how='left').sort_values(by='delta_1',ascending=True)
-    
-    # select output columns
-    # df = df[['Project','Gefactureerd totaal', 'Aangeboden', 'Ingekocht','Extra werk', 'Categorie', 'Hoe afgehecht']]
+    df = df.merge(df_add,on='Categorie',how='left').sort_values(by='delta_1',ascending=True).rename(columns={'delta_1':'OHW'})
+    df = df[['Bnummer','Project','Projectstatus','Hoe afgehecht','Aangeboden','Goedgekeurd','Ingekocht','Gefactureerd totaal','Revisie totaal','OHW', 'Extra werk', 'Beschrijving categorie','Oplosactie']]
 
     #Convert DF
     strIO = io.BytesIO()
@@ -458,7 +462,7 @@ def download_excel1():
     strIO.seek(0)
 
     #Name download file
-    Filename = 'Info_project_all_' + dt.datetime.now().strftime('%d-%m-%Y') + '.xlsx'
+    Filename = 'Info_project_all_' + 'filters_' + filter_selectie + '_' + dt.datetime.now().strftime('%d-%m-%Y') + '.xlsx'
     return send_file(strIO,
                      attachment_filename=Filename,
                      as_attachment=True)
@@ -469,6 +473,7 @@ def download_excel2():
 
     df = pd.read_pickle(pickle_path + 'extra_werk_inkooporder.pkl')
     df = df.reset_index()
+    df.rename(columns={'Ontvangen':'Extra werk'},inplace=True)
 
     #Convert DF
     strIO = io.BytesIO()
@@ -520,6 +525,9 @@ def make_global_figures(filter_selectie):
 
     # df_OHW = pd.read_pickle(pickle_path + 'df_OHW.pkl')
     df_inkoop = pd.read_pickle(pickle_path + 'inkoop.pkl')
+    # df_inkoop = pd.read_csv(pickle_path + 'inkoop.csv')
+    # df_inkoop.index = pd.to_datetime(df_inkoop.set_index(['LEVERDATUM_ONTVANGST']).index)
+    # df_inkoop.drop(columns=['LEVERDATUM_ONTVANGST'],axis=1, inplace=True)
     df_revisie = pd.read_pickle(pickle_path + 'revisie.pkl')
     df_workflow = pd.read_pickle(pickle_path + 'workflow.pkl')
 
@@ -919,7 +927,8 @@ def generate_status_table_ext(selected_category, filter_selectie):
                 "Factureren extra werk",
                 "Factureren extra werk",
                 "Check koppeling WF-Organize"]
-    df_out = df_out.merge(df_add,on='Categorie',how='left').sort_values(by='delta_1',ascending=True)
+    df_out = df_out.merge(df_add,on='Categorie',how='left').sort_values(by='delta_1',ascending=True).rename(columns={'delta_1':'OHW'})
+    df_out = df_out[['Bnummer','Project','Projectstatus','Hoe afgehecht','Aangeboden','Goedgekeurd','Ingekocht','Gefactureerd totaal','Revisie totaal','OHW', 'Extra werk', 'Beschrijving categorie','Oplosactie']]
 
     if selected_category == None:
         return [html.P()]
