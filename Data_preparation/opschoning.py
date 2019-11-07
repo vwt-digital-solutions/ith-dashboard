@@ -54,7 +54,7 @@ def get_extra_werk():
     # Eerst groeperen op inkooporder, daarna op project 
     inkooporders = inkoop.groupby(['INKOOPORDER']).agg({'PROJECT':'count', 'Extra_werk':'sum','DP_code':'sum','Geul':'sum','Ontvangen':'sum'})
     # Als er een code extra werk op een inkooporder aanwezig is, en er staat geen DP_code op de inkooporder, dan is het extra werk 
-    inkooporders_ew = inkooporders[(inkooporders['Extra_werk']>0) & (inkooporders['DP_code']==0) & (inkooporders['Geul']>1)]
+    inkooporders_ew = inkooporders[(inkooporders['Extra_werk']>0) & (inkooporders['DP_code']==0) & (inkooporders['Geul']>0)]
     inkooporders_ew = list(inkooporders_ew.index) # 135 orders met extra werk
 
     mask = ((inkoop['INKOOPORDER'].isin(inkooporders_ew)) & (inkoop['Geul']==1))
@@ -62,7 +62,6 @@ def get_extra_werk():
 
     extra_werk_inkooporder = inkoop_relevant.groupby('INKOOPORDER').agg({'Ontvangen':'sum'})
     extra_werk_project = inkoop_relevant.groupby('PROJECT').agg({'Ontvangen':'sum'})
-
 
     return extra_werk_inkooporder, extra_werk_project 
 
