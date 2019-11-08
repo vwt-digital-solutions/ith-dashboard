@@ -1,0 +1,7 @@
+export.sh
+.DS_Store
+__pycache__
+settings.json
+config.json
+start_jupyter.py
+config.py
