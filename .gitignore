@@ -1,5 +1,10 @@
-settings.json
-venv
-*.pyc
+export.sh
 .DS_Store
-.env
+__pycache__
+settings.json
+data/
+*.pkl
+assets/
+config.json
+start_jupyter.py
+config.py
