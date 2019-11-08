@@ -3,8 +3,8 @@ import flask_login
 from jwkaas import JWKaas
 from .auth import Auth
 
-from flask import redirect, url_for, Response, abort, session
-from flask_dance.contrib.azure import azure make_azure_blueprint
+from flask import redirect, url_for, Response, abort
+from flask_dance.contrib.azure import azure, make_azure_blueprint
 
 
 class AzureOAuth(Auth):
