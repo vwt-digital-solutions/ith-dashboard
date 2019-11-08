@@ -21,5 +21,5 @@ pip install -r requirements.txt
 To run the Dash application, use the following command, including live reload.
 
 ```
-gunicorn --pythonpath app.py app:server --reload
+gunicorn --pythonpath app.py app:server --reload --workers=3
 ```
