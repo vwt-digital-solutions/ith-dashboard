@@ -58,6 +58,7 @@ if config.authentication:
         config.authentication['expected_audience'],
         config.authentication['jwks_url'],
         config.authentication['tenant'],
+        config.authentication['role'],
         config.authentication['session_secret'],
         config.authentication['required_scopes']
     )

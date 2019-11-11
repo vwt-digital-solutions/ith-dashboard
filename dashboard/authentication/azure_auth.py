@@ -9,7 +9,7 @@ from flask_dance.contrib.azure import azure, make_azure_blueprint
 
 class AzureOAuth(Auth):
     def __init__(self, app, client_id, client_secret, expected_issuer, expected_audience, jwks_url, tenant,
-                 session_secret, scopes=None):
+                 role, session_secret, scopes=None):
         super(AzureOAuth, self).__init__(app)
         azure_bp = make_azure_blueprint(
             client_id=client_id,
@@ -21,6 +21,7 @@ class AzureOAuth(Auth):
         app.server.secret_key = session_secret
         self._jwkaas = JWKaas(expected_audience, expected_issuer, jwks_url=jwks_url)
         self.client_id = client_id
+        self.role = role
         self.logout_url = None
         self.user = None
 
@@ -35,10 +36,10 @@ class AzureOAuth(Auth):
         self.logout_url = "https://login.microsoftonline.com/{}/oauth2/v2.0/logout".format(token_info['tid'])
 
         if token_info:
-            if 'roles' in token_info and 'czdashboard.user' in token_info['roles']:
+            if 'roles' in token_info and self.role in token_info['roles']:
                 return True
             else:
-                logging.warning('Missing required role czdashboard.user')
+                logging.warning('Missing required role'.format(self.role))
                 return abort(403)
         else:
             logging.warning('Invalid access token')
