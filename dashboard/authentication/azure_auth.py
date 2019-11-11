@@ -21,7 +21,6 @@ class AzureOAuth(Auth):
         app.server.secret_key = session_secret
         self._jwkaas = JWKaas(expected_audience, expected_issuer, jwks_url=jwks_url)
         self.client_id = client_id
-        self.role = role
         self.logout_url = None
         self.user = None
 
@@ -36,7 +35,7 @@ class AzureOAuth(Auth):
         self.logout_url = "https://login.microsoftonline.com/{}/oauth2/v2.0/logout".format(token_info['tid'])
 
         if token_info:
-            if 'roles' in token_info and self.role in token_info['roles']:
+            if 'roles' in token_info and 'ithdashboard.read' in token_info['roles']:
                 return True
             else:
                 logging.warning('Missing required role'.format(self.role))
