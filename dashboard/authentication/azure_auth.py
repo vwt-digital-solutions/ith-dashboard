@@ -35,6 +35,7 @@ class AzureOAuth(Auth):
         self.logout_url = "https://login.microsoftonline.com/{}/oauth2/v2.0/logout".format(token_info['tid'])
 
         if token_info:
+            logging.info(token_info)
             if 'roles' in token_info and 'ithdashboard.read' in token_info['roles']:
                 return True
             else:
