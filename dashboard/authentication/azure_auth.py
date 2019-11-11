@@ -29,7 +29,9 @@ class AzureOAuth(Auth):
             # send to azure login
             return False
 
+        print('token_info')
         token_info = self._jwkaas.get_token_info(azure.access_token)
+        print(token_info)
 
         self.user = token_info['unique_name']
         self.logout_url = "https://login.microsoftonline.com/{}/oauth2/v2.0/logout".format(token_info['tid'])
