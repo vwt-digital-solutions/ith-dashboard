@@ -38,7 +38,7 @@ class AzureOAuth(Auth):
             if 'roles' in token_info and 'ithdashboard.read' in token_info['roles']:
                 return True
             else:
-                logging.warning('Missing required role'.format(self.role))
+                logging.warning('Missing required role')
                 return abort(403)
         else:
             logging.warning('Invalid access token')
