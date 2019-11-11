@@ -9,7 +9,7 @@ from flask_dance.contrib.azure import azure, make_azure_blueprint
 
 class AzureOAuth(Auth):
     def __init__(self, app, client_id, client_secret, expected_issuer, expected_audience, jwks_url, tenant,
-                 role, session_secret, scopes=None):
+                 session_secret, scopes=None):
         super(AzureOAuth, self).__init__(app)
         azure_bp = make_azure_blueprint(
             client_id=client_id,
