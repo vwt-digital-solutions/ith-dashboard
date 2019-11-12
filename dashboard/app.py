@@ -59,6 +59,7 @@ if config.authentication:
         config.authentication['jwks_url'],
         config.authentication['tenant'],
         config.authentication['session_secret'],
+        config.authentication['role'],
         config.authentication['required_scopes']
     )
 
@@ -173,7 +174,7 @@ app.layout = html.Div(
                                         href="/download_excel?categorie=1&filters=['empty']",
                                         style={"color": "white", "text-decoration": "none"}
                                     ),
-                                    style={"background-color": "#009FDF", "margin-bottom": "5px"}
+                                    style={"background-color": "#009FDF", "margin-bottom": "5px", "display": "block"}
                                 ),
                                 html.Button(
                                     html.A(
@@ -182,7 +183,7 @@ app.layout = html.Div(
                                         href="/download_excel1?filters=['empty']",
                                         style={"color": "white", "text-decoration": "none"}
                                     ),
-                                    style={"background-color": "#009FDF", "margin-bottom": "5px"}
+                                    style={"background-color": "#009FDF", "margin-bottom": "5px", "display": "block"}
                                 ),
                                 html.Button(
                                     html.A(
@@ -191,7 +192,7 @@ app.layout = html.Div(
                                         href="/download_excel2?filters=['empty']",
                                         style={"color": "white", "text-decoration": "none"}
                                     ),
-                                    style={"background-color": "#009FDF", "margin-bottom": "5px"}
+                                    style={"background-color": "#009FDF", "margin-bottom": "5px", "display": "block"}
                                 ),
                                 # html.Button(
                                 #     'Uitleg categorieën',
