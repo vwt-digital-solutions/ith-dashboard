@@ -9,7 +9,7 @@ from flask_dance.contrib.azure import azure, make_azure_blueprint
 
 class AzureOAuth(Auth):
     def __init__(self, app, client_id, client_secret, expected_issuer, expected_audience, jwks_url, tenant,
-                 session_secret, scopes=None):
+                 session_secret, role, scopes=None):
         super(AzureOAuth, self).__init__(app)
         azure_bp = make_azure_blueprint(
             client_id=client_id,
@@ -23,22 +23,20 @@ class AzureOAuth(Auth):
         self.client_id = client_id
         self.logout_url = None
         self.user = None
+        self.role = role
 
     def is_authorized(self):
         if not azure.authorized or azure.token['expires_in'] < 10:
             # send to azure login
             return False
 
-        print('token_info')
         token_info = self._jwkaas.get_token_info(azure.access_token)
-        print(token_info)
 
         self.user = token_info['unique_name']
         self.logout_url = "https://login.microsoftonline.com/{}/oauth2/v2.0/logout".format(token_info['tid'])
 
         if token_info:
-            logging.info(token_info)
-            if 'roles' in token_info and 'ithdashboard.read' in token_info['roles']:
+            if 'roles' in token_info and self.role in token_info['roles']:
                 return True
             else:
                 logging.warning('Missing required role')
