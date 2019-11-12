@@ -266,7 +266,7 @@ app.layout = html.Div(
                         html.Div(
                             [
                                 html.H6(id="info_globaal_3"),
-                                html.P("Totaal aantal meter OHW (op basis van deeldf_revisies)")
+                                html.P("Totaal aantal meter OHW (op basis van (deel)revisies)")
                             ],
                             id="info_globaal_container3",
                             className="pretty_container 3 columns",
@@ -364,7 +364,16 @@ app.layout = html.Div(
                 ),
             ],
             className="row flex-display",
-        )
+        ),
+        html.Div(
+            [
+                html.Div(
+                    id='status_table_ext',
+                    className="pretty_container 1 columns",
+                ),
+            ],
+            className="row flex-display",
+        ),
     ],
     id="mainContainer",
     style={"display": "flex", "flex-direction": "column"},
