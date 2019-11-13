@@ -82,6 +82,7 @@ app.layout = html.Div(
         dcc.Store(id="data_workflow"),
         dcc.Store(id="data_inkoop"),
         dcc.Store(id="data_revisie"),
+        dcc.Store(id="data_nulpunt"),
 
         # html.Div(
         #     [
@@ -422,9 +423,10 @@ def download_excel():
 
     # Alle projecten met OHW
     df_workflow = pd.read_csv(config.workflow_csv)
-    pcodes_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
+    pcodes_nulpunt = pd.DataFrame(pd.read_csv(config.pcodes_nulpunt_csv))
+
     if 'NL' in filter_selectie:
-        df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)]
+        df_workflow = df_workflow[~df_workflow['Project'].isin(list(pcodes_nulpunt['project'].unique()))]
     if 'AF_1' in filter_selectie:
         df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Administratief Afhechting')]
     if 'AF_2' in filter_selectie:
@@ -465,9 +467,10 @@ def download_excel1():
     filter_selectie = flask.request.args.get('filters')
 
     df_workflow = pd.read_csv(config.workflow_csv)
-    pcodes_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
+    pcodes_nulpunt = pd.DataFrame(pd.read_csv(config.pcodes_nulpunt_csv))
+
     if 'NL' in filter_selectie:
-        df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)]
+        df_workflow = df_workflow[~df_workflow['Project'].isin(list(pcodes_nulpunt['project'].unique()))]
     if 'AF_1' in filter_selectie:
         df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Administratief Afhechting')]
     if 'AF_2' in filter_selectie:
@@ -549,7 +552,8 @@ def update_text(data1, data2):
      Output("aggregate_data", "data"),
      Output("data_workflow", "data"),
      Output("data_inkoop", "data"),
-     Output("data_revisie", "data")],
+     Output("data_revisie", "data"),
+     Output("data_nulpunt", "data")],
     [Input("checklist_filters", 'value')]
 )
 @cache.memoize()
@@ -571,10 +575,10 @@ def make_global_figures(filter_selectie):
     # code voor het maken van het nulpunt...projecten met 0 inkoop en 0 gefactureerd...
     # df_workflow[~((df_workflow['Gefactureerd totaal'] == 0) & (df_workflow['Ingekocht'] == 0))]['Project']
     # .to_pickle(pickle_path + pcodes_nulpunt_' + dt.datetime.now().strftime('%d-%m-%Y') + '.pkl')
-    pcodes_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
+    pcodes_nulpunt = pd.DataFrame(pd.read_csv(config.pcodes_nulpunt_csv))
 
     if 'NL' in filter_selectie:
-        df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)]
+        df_workflow = df_workflow[~df_workflow['Project'].isin((pcodes_nulpunt['project'].unique()))]
 
     if 'AF_1' in filter_selectie:
         df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Administratief Afhechting')]
@@ -687,7 +691,15 @@ def make_global_figures(filter_selectie):
     df_inkoop['LEVERDATUM_ONTVANGST'] = df_inkoop['LEVERDATUM_ONTVANGST'].astype('str')
     df_revisie.index = df_revisie.index.map(str)
 
-    return [figure1, figure2, stats, df_workflow.to_dict(), df_inkoop.to_dict(), df_revisie.to_dict()]
+    return [
+        figure1,
+        figure2,
+        stats,
+        df_workflow.to_dict(),
+        df_inkoop.to_dict(),
+        df_revisie.to_dict(),
+        pcodes_nulpunt.to_dict(),
+    ]
 
 
 # Callback voor taartdiagram
@@ -696,20 +708,22 @@ def make_global_figures(filter_selectie):
     [
         Input("checklist_filters", 'value'),
         Input("data_workflow", 'data'),
+        Input("data_nulpunt", "data"),
     ],
 )
 @cache.memoize()
-def make_pie_figure(filter_selectie, df_workflow):
+def make_pie_figure(filter_selectie, df_workflow, pcodes_nulpunt):
 
-    if df_workflow is None:
+    if (df_workflow is None) | (pcodes_nulpunt is None):
         raise PreventUpdate
 
     layout_pie = copy.deepcopy(layout)
     df_workflow = pd.DataFrame(df_workflow)
-    pcodes_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
+
+    pcodes_nulpunt = pd.DataFrame(pcodes_nulpunt)
 
     if 'NL' in filter_selectie:
-        df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)]
+        df_workflow = df_workflow[~df_workflow['Project'].isin((pcodes_nulpunt['project'].unique()))]
 
     if 'AF_1' in filter_selectie:
         df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Administratief Afhechting')]
@@ -788,16 +802,19 @@ def make_pie_figure(filter_selectie, df_workflow):
      Input("checklist_filters", 'value'),
      Input("data_workflow", 'data'),
      Input("data_inkoop", 'data'),
-     Input("data_revisie", 'data')],
+     Input("data_revisie", 'data'),
+     Input("data_nulpunt", "data")],
 )
 @cache.memoize()
-def figures_selected_category(selected_category, filter_selectie, df_workflow, df_inkoop, df_revisie):
+def figures_selected_category(selected_category, filter_selectie, df_workflow, df_inkoop, df_revisie, pcodes_nulpunt):
 
     if df_workflow is None:
         raise PreventUpdate
     if df_inkoop is None:
         raise PreventUpdate
     if df_revisie is None:
+        raise PreventUpdate
+    if pcodes_nulpunt is None:
         raise PreventUpdate
 
     cat_lookup = {'1': 'Cat1', '2': 'Cat2', '3': 'Cat3', '4': 'Cat4', '5': 'Cat5'}
@@ -814,7 +831,8 @@ def figures_selected_category(selected_category, filter_selectie, df_workflow, d
     df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
     df_inkoop = pd.DataFrame(df_inkoop)
     df_revisie = pd.DataFrame(df_revisie)
-    pcodes_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
+
+    pcodes_nulpunt = pd.DataFrame(pcodes_nulpunt)
 
     df_inkoop.index = pd.to_datetime(df_inkoop.set_index(['LEVERDATUM_ONTVANGST']).index)
     df_inkoop.drop(columns=['LEVERDATUM_ONTVANGST'], axis=1, inplace=True)
@@ -829,7 +847,7 @@ def figures_selected_category(selected_category, filter_selectie, df_workflow, d
     # df_revisie.set_index(['Datum'], inplace = True)
 
     if 'NL' in filter_selectie:
-        df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)]
+        df_workflow = df_workflow[~df_workflow['Project'].isin((pcodes_nulpunt['project'].unique()))]
     if 'AF_1' in filter_selectie:
         df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Administratief Afhechting')]
     if 'AF_2' in filter_selectie:
@@ -957,13 +975,16 @@ def figures_selected_category(selected_category, filter_selectie, df_workflow, d
         [
             Input("pie_graph", 'clickData'),
             Input("checklist_filters", 'value'),
-            Input("data_workflow", 'data')
+            Input("data_workflow", 'data'),
+            Input("data_nulpunt", "data"),
         ],
 )
 @cache.memoize()
-def generate_status_table_ext(selected_category, filter_selectie, df_workflow):
+def generate_status_table_ext(selected_category, filter_selectie, df_workflow, pcodes_nulpunt):
 
     if df_workflow is None:
+        raise PreventUpdate
+    if pcodes_nulpunt is None:
         raise PreventUpdate
 
     df_workflow = pd.DataFrame(df_workflow)
@@ -977,10 +998,10 @@ def generate_status_table_ext(selected_category, filter_selectie, df_workflow):
 
     # df_workflow = pd.read_csv(config.workflow_csv)
     df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
-    pcodes_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
+    pcodes_nulpunt = pd.DataFrame(pcodes_nulpunt)
 
     if 'NL' in filter_selectie:
-        df_workflow = df_workflow[~df_workflow['Project'].isin(pcodes_nulpunt)]
+        df_workflow = df_workflow[~df_workflow['Project'].isin((pcodes_nulpunt['project'].unique()))]
 
     if 'AF_1' in filter_selectie:
         df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Administratief Afhechting')]
