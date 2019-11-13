@@ -405,7 +405,6 @@ def update_link(clickData, selected_filters):
     if selected_filters is None:
         selected_filters = ['empty']
 
-    print()
 
     return ['/download_excel?categorie={}&filters={}'.format(cat, selected_filters),
             '/download_excel1?filters={}'.format(selected_filters),
@@ -416,8 +415,6 @@ def update_link(clickData, selected_filters):
 def download_excel():
     cat = flask.request.args.get('categorie')
     filter_selectie = flask.request.args.get('filters')
-
-    print(filter_selectie)
 
     cat_lookup = {'1': 'Cat1', '2': 'Cat2', '3': 'Cat3', '4': 'Cat4', '5': 'Cat5'}
 
