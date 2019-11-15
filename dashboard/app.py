@@ -404,7 +404,6 @@ def update_link(clickData, selected_filters):
     if selected_filters is None:
         selected_filters = ['empty']
 
-
     return ['/download_excel?categorie={}&filters={}'.format(cat, selected_filters),
             '/download_excel1?filters={}'.format(selected_filters),
             '/download_excel2?filters={}'.format(selected_filters)]
@@ -741,18 +740,17 @@ def make_pie_figure(filter_selectie, df_workflow, pcodes_nulpunt):
 
     meters_cat = -df_OHW.groupby('Categorie').agg({'delta_1': 'sum'})
 
-    cat1 = meters_cat.loc['Cat1'][0].round(0)
-    cat2 = meters_cat.loc['Cat2'][0].round(0)
-    cat3 = meters_cat.loc['Cat3'][0].round(0)
-    cat4 = meters_cat.loc['Cat4'][0].round(0)
-    cat5 = meters_cat.loc['Cat5'][0].round(0)
-    cat6 = meters_cat.loc['Cat6'][0].round(0)
+    # check for categories that don't exist
+    beschrijving_cat = []
+    for cat in meters_cat.index:
+        matching = [s for s in config.beschrijving_cat if cat in s]
+        beschrijving_cat = beschrijving_cat + [matching]
 
     data = [
         dict(
             type="pie",
-            labels=config.beschrijving_cat,
-            values=[cat1, cat2, cat3, cat4, cat5, cat6],
+            labels=beschrijving_cat,
+            values=meters_cat['delta_1'],
             hoverinfo="percent",
             textinfo="value",
             hole=0.5,
@@ -818,15 +816,7 @@ def figures_selected_category(selected_category, filter_selectie, df_workflow, d
 
     df_inkoop.index = pd.to_datetime(df_inkoop.set_index(['LEVERDATUM_ONTVANGST']).index)
     df_inkoop.drop(columns=['LEVERDATUM_ONTVANGST'], axis=1, inplace=True)
-    # df_inkoop.index = pd.to_datetime(df_inkoop.index)
-    # df_revisie.index = pd.to_datetime(df_revisie.set_index(['Datum']).index)
-    # df_revisie.drop(columns=['Datum'], axis=1, inplace=True)
     df_revisie.index = pd.to_datetime(df_revisie.index)
-
-    # df_inkoop['LEVERDATUM_ONTVANGST'] = pd.to_datetime(df_inkoop['LEVERDATUM_ONTVANGST'])
-    # df_inkoop.set_index(['LEVERDATUM_ONTVANGST'], inplace=True)
-    # df_revisie['Datum'] = pd.to_datetime(df_revisie['Datum'])
-    # df_revisie.set_index(['Datum'], inplace = True)
 
     if 'NL' in filter_selectie:
         df_workflow = df_workflow[~df_workflow['Project'].isin((pcodes_nulpunt['project'].unique()))]
@@ -981,7 +971,7 @@ def generate_status_table_ext(selected_category, filter_selectie, df_workflow, p
         df_OHW.loc['30-10-2019'] = df_OHW.loc['31-10-2019'] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         df_OHW.index = pd.to_datetime(df_OHW.index)
 
-    # Alle projecten met OHW
+    # Alle projecten met OHW in categorie
     df_out = df_OHW[df_OHW['Categorie'] == cat[0:4]]
 
     # Add categorie description and solution action
