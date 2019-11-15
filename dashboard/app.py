@@ -397,10 +397,9 @@ app.layout = html.Div(
 def update_link(clickData, selected_filters):
 
     if clickData is None:
-        cat = '1'
+        cat = config.beschrijving_cat[0]
     else:
         cat = clickData.get('points')[0].get('label')
-        cat = cat[0]
 
     if selected_filters is None:
         selected_filters = ['empty']
@@ -416,8 +415,6 @@ def download_excel():
     cat = flask.request.args.get('categorie')
     filter_selectie = flask.request.args.get('filters')
 
-    cat_lookup = {'1': 'Cat1', '2': 'Cat2', '3': 'Cat3', '4': 'Cat4', '5': 'Cat5'}
-
     # Alle projecten met OHW
     df_workflow = pd.read_csv(config.workflow_csv)
     pcodes_nulpunt = pd.DataFrame(pd.read_csv(config.pcodes_nulpunt_csv))
@@ -431,11 +428,11 @@ def download_excel():
     if 'AF_3' in filter_selectie:
         df_workflow = df_workflow[~(df_workflow['Hoe afgehecht'] == 'Bis Gereed')]
 
-    df = df_workflow[df_workflow['Categorie'] == cat_lookup.get(cat)]
+    df = df_workflow[df_workflow['Categorie'] == cat[0:4]]
 
     # add categorie description and solution action
     df_add = pd.DataFrame(columns=['Categorie', 'Beschrijving categorie', 'Oplosactie'])
-    df_add['Categorie'] = ['Cat1', 'Cat2', 'Cat3', 'Cat4', 'Cat5']
+    df_add['Categorie'] = ['Cat1', 'Cat2', 'Cat3', 'Cat4', 'Cat5', 'Cat6']
     df_add['Beschrijving categorie'] = config.beschrijving_cat
     df_add['Oplosactie'] = config.oplosactie
     df = df.merge(df_add,
@@ -453,7 +450,7 @@ def download_excel():
 
     # Name download file
     date = dt.datetime.now().strftime('%d-%m-%Y')
-    filename = "Info_project_{}_filters_{}_{}.xlsx".format(cat_lookup.get(cat), filter_selectie, date)
+    filename = "Info_project_{}_filters_{}_{}.xlsx".format(cat[0:4], filter_selectie, date)
     return send_file(strIO,
                      attachment_filename=filename,
                      as_attachment=True)
@@ -479,7 +476,7 @@ def download_excel1():
 
     # add categorie description and solution action
     df_add = pd.DataFrame(columns=['Categorie', 'Beschrijving categorie', 'Oplosactie'])
-    df_add['Categorie'] = ['Cat1', 'Cat2', 'Cat3', 'Cat4', 'Cat5']
+    df_add['Categorie'] = ['Cat1', 'Cat2', 'Cat3', 'Cat4', 'Cat5', 'Cat6']
     df_add['Beschrijving categorie'] = config.beschrijving_cat
     df_add['Oplosactie'] = config.oplosactie
     df = df.merge(df_add,
@@ -744,28 +741,18 @@ def make_pie_figure(filter_selectie, df_workflow, pcodes_nulpunt):
 
     meters_cat = -df_OHW.groupby('Categorie').agg({'delta_1': 'sum'})
 
-    beschrijving_cat = [
-        "1: Onbetrouwbare 'daling' in deelrevisie",
-        "2: Aangeboden > 0, Goedgekeurd = 0",
-        "3: Deelrevisie > Facturatie, Inkoop",
-        "4: Deelrevisie > Facturatie maar < Inkoop",
-        "5: Deelrevisie < Facturatie, Inkoop"
-    ]
-
     cat1 = meters_cat.loc['Cat1'][0].round(0)
     cat2 = meters_cat.loc['Cat2'][0].round(0)
     cat3 = meters_cat.loc['Cat3'][0].round(0)
     cat4 = meters_cat.loc['Cat4'][0].round(0)
     cat5 = meters_cat.loc['Cat5'][0].round(0)
+    cat6 = meters_cat.loc['Cat6'][0].round(0)
 
     data = [
         dict(
             type="pie",
-            # labels=["b1", "b2", "b3", "b4", "b5", "b6"],
-            labels=beschrijving_cat,
-            values=[cat1, cat2, cat3, cat4, cat5],
-            # name=["test", "b2", "b3", "b4", "b5", "b6"],
-            # text=beschrijving_cat,
+            labels=config.beschrijving_cat,
+            values=[cat1, cat2, cat3, cat4, cat5, cat6],
             hoverinfo="percent",
             textinfo="value",
             hole=0.5,
@@ -814,12 +801,10 @@ def figures_selected_category(selected_category, filter_selectie, df_workflow, d
     if pcodes_nulpunt is None:
         raise PreventUpdate
 
-    cat_lookup = {'1': 'Cat1', '2': 'Cat2', '3': 'Cat3', '4': 'Cat4', '5': 'Cat5'}
     if selected_category is None:
-        cat = '1'
+        cat = config.beschrijving_cat[0]
     else:
         cat = selected_category.get('points')[0].get('label')
-        cat = cat[0]
 
     layout_graph_selected_projects = copy.deepcopy(layout)
     layout_graph_selected_projects_OHW = copy.deepcopy(layout)
@@ -860,7 +845,7 @@ def figures_selected_category(selected_category, filter_selectie, df_workflow, d
         df_OHW.index = pd.to_datetime(df_OHW.index)
 
     # Alle projecten met OHW
-    projecten = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Project'].astype('str')
+    projecten = df_OHW[df_OHW['Categorie'] == cat[0:4]]['Project'].astype('str')
 
     # Alle inkoop orders
     df_inkoop = df_inkoop[df_inkoop['PROJECT'].isin(projecten)]
@@ -873,8 +858,8 @@ def figures_selected_category(selected_category, filter_selectie, df_workflow, d
     df_revisie = df_revisie[list(projecten)]
 
     # waardes voor grafieken
-    ingeschat = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Aangeboden'].sum()
-    gefactureerd = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Gefactureerd totaal'].sum()
+    ingeschat = df_OHW[df_OHW['Categorie'] == cat[0:4]]['Aangeboden'].sum()
+    gefactureerd = df_OHW[df_OHW['Categorie'] == cat[0:4]]['Gefactureerd totaal'].sum()
     inkoop = df_inkoop.groupby('LEVERDATUM_ONTVANGST').agg({'Ontvangen': 'sum'})
     # inkoop = df_inkoop.groupby(df_inkoop.index).agg({'Ontvangen':'sum'})
     inkoop = inkoop['Ontvangen'].cumsum().asfreq('D', 'ffill')
@@ -888,7 +873,7 @@ def figures_selected_category(selected_category, filter_selectie, df_workflow, d
     # Aantal projecten met positieve OHW:
     ntotmi = inkoop[-1].round(0)
     # meerwerk in deze categorie
-    meerw = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]['Extra werk'].sum().round(0)
+    meerw = df_OHW[df_OHW['Categorie'] == cat[0:4]]['Extra werk'].sum().round(0)
 
     data1 = [
         dict(
@@ -936,21 +921,7 @@ def figures_selected_category(selected_category, filter_selectie, df_workflow, d
         ),
     ]
 
-    # beschrijving_cat = ["1: Onbetrouwbare 'daling' in deelrevisie; terugkoppelen naar TPG",
-    # "2: Aangeboden > 0, Goedgekeurd = 0; vertraging KPN",
-    # "3: Deelrevisie > Facturatie, Inkoop; factureren extra werk",
-    # "4: Deelrevisie > Facturatie maar < Inkoop; factureren extra werk",
-    # "5: Deelrevisie < Facturatie, Inkoop; check koppeling WF-Organize"]
-
-    beschrijving_cat = [
-        "1: Onbetrouwbare 'daling' in deelrevisie",
-        "2: Aangeboden > 0, Goedgekeurd = 0",
-        "3: Deelrevisie > Facturatie, Inkoop",
-        "4: Deelrevisie > Facturatie maar < Inkoop",
-        "5: Deelrevisie < Facturatie, Inkoop"
-    ]
-
-    layout_graph_selected_projects["title"] = "Categorie {} :<br> ({})".format(cat, beschrijving_cat[int(cat[0])-1][3:])
+    layout_graph_selected_projects["title"] = cat
     layout_graph_selected_projects["dragmode"] = "select"
     layout_graph_selected_projects["showlegend"] = True
     layout_graph_selected_projects["autosize"] = True
@@ -986,14 +957,11 @@ def generate_status_table_ext(selected_category, filter_selectie, df_workflow, p
 
     df_workflow = pd.DataFrame(df_workflow)
 
-    cat_lookup = {'1': 'Cat1', '2': 'Cat2', '3': 'Cat3', '4': 'Cat4', '5': 'Cat5', '6': 'Cat6'}
     if selected_category is None:
-        cat = '1'
+        cat = config.beschrijving_cat[0]
     else:
         cat = selected_category.get('points')[0].get('label')
-        cat = cat[0]
 
-    # df_workflow = pd.read_csv(config.workflow_csv)
     df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
     pcodes_nulpunt = pd.DataFrame(pcodes_nulpunt)
 
@@ -1014,11 +982,11 @@ def generate_status_table_ext(selected_category, filter_selectie, df_workflow, p
         df_OHW.index = pd.to_datetime(df_OHW.index)
 
     # Alle projecten met OHW
-    df_out = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]
+    df_out = df_OHW[df_OHW['Categorie'] == cat[0:4]]
 
     # Add categorie description and solution action
     df_add = pd.DataFrame(columns=['Categorie', 'Beschrijving categorie', 'Oplosactie'])
-    df_add['Categorie'] = ['Cat1', 'Cat2', 'Cat3', 'Cat4', 'Cat5']
+    df_add['Categorie'] = ['Cat1', 'Cat2', 'Cat3', 'Cat4', 'Cat5', 'Cat6']
     df_add['Beschrijving categorie'] = config.beschrijving_cat
     df_add['Oplosactie'] = config.oplosactie
     df_out = df_out.merge(df_add,
