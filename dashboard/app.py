@@ -335,7 +335,8 @@ app.layout = html.Div(
                         html.Div(
                             [
                                 html.H6(id="info_bakje_2"),
-                                html.P("Totaal aantal meters in deze categorie")
+                                html.P("""Totaal aantal meters in
+                                         deze categorie""")
                             ],
                             className="pretty_container 3 columns",
                         ),
@@ -462,7 +463,7 @@ def data_from_DB(filter_selectie, flag):
 
     df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
     mask = df_OHW['Project'].to_list()
-    
+
     df_inkoop = df_inkoop[df_inkoop['PROJECT'].isin(mask)]
 
     return df_workflow, df_inkoop, df_revisie, df_OHW
@@ -483,10 +484,9 @@ def data_from_DB(filter_selectie, flag):
 def update_link(clickData, selected_filters):
 
     if clickData is None:
-        cat = '1'
+        cat = config.beschrijving_cat[0]
     else:
         cat = clickData.get('points')[0].get('label')
-        cat = cat[0]
 
     if selected_filters is None:
         selected_filters = ['empty']
@@ -510,7 +510,7 @@ def download_excel():
     # add categorie description and solution action
     df_add = pd.DataFrame(columns=['Categorie',
                                    'Beschrijving categorie', 'Oplosactie'])
-    df_add['Categorie'] = ['Cat1', 'Cat2', 'Cat3', 'Cat4', 'Cat5']
+    df_add['Categorie'] = ['Cat1', 'Cat2', 'Cat3', 'Cat4', 'Cat5', 'Cat6']
     df_add['Beschrijving categorie'] = config.beschrijving_cat
     df_add['Oplosactie'] = config.oplosactie
     df = df.merge(df_add, on='Categorie', how='left').sort_values(
@@ -544,7 +544,7 @@ def download_excel1():
     # add categorie description and solution action
     df_add = pd.DataFrame(columns=['Categorie',
                                    'Beschrijving categorie', 'Oplosactie'])
-    df_add['Categorie'] = ['Cat1', 'Cat2', 'Cat3', 'Cat4', 'Cat5']
+    df_add['Categorie'] = ['Cat1', 'Cat2', 'Cat3', 'Cat4', 'Cat5', 'Cat6']
     df_add['Beschrijving categorie'] = config.beschrijving_cat
     df_add['Oplosactie'] = config.oplosactie
     df = df.merge(df_add, on='Categorie', how='left').sort_values(
@@ -572,7 +572,7 @@ def download_excel2():
     df_workflow, df_inkoop, _, _ = data_from_DB(filter_selectie=None, flag=0)
     plist = df_workflow[df_workflow['Extra werk'] != 0]['Project'].to_list()
     df = df_inkoop[df_inkoop['PROJECT'].isin(plist)]
-    df = df.groupby(['INKOOPORDER','PROJECT']).agg({'Ontvangen': 'sum'})
+    df = df.groupby(['INKOOPORDER', 'PROJECT']).agg({'Ontvangen': 'sum'})
     df = df.reset_index()
     df.rename(columns={'Ontvangen': 'Extra werk'}, inplace=True)
 
@@ -733,25 +733,17 @@ def make_pie_figure(filter_selectie):
 
     meters_cat = -df_OHW.groupby('Categorie').agg({'delta_1': 'sum'})
 
-    beschrijving_cat = [
-        "1: Onbetrouwbare 'daling' in deelrevisie",
-        "2: Aangeboden > 0, Goedgekeurd = 0",
-        "3: Deelrevisie > Facturatie, Inkoop",
-        "4: Deelrevisie > Facturatie maar < Inkoop",
-        "5: Deelrevisie < Facturatie, Inkoop"
-    ]
-
-    cat1 = meters_cat.loc['Cat1'][0].round(0)
-    cat2 = meters_cat.loc['Cat2'][0].round(0)
-    cat3 = meters_cat.loc['Cat3'][0].round(0)
-    cat4 = meters_cat.loc['Cat4'][0].round(0)
-    cat5 = meters_cat.loc['Cat5'][0].round(0)
+    # check for categories that don't exist
+    beschrijving_cat = []
+    for cat in meters_cat.index:
+        matching = [s for s in config.beschrijving_cat if cat in s]
+        beschrijving_cat = beschrijving_cat + [matching]
 
     data = [
         dict(
             type="pie",
             labels=beschrijving_cat,
-            values=[cat1, cat2, cat3, cat4, cat5],
+            values=meters_cat['delta_1'],
             hoverinfo="percent",
             textinfo="value",
             hole=0.5,
@@ -791,12 +783,11 @@ def figures_selected_category(selected_category, filter_selectie):
         filter_selectie, flag=0)
 
     cat_lookup = {'1': 'Cat1', '2': 'Cat2', '3': 'Cat3',
-                  '4': 'Cat4', '5': 'Cat5'}
+                  '4': 'Cat4', '5': 'Cat5', '6': 'Cat6'}
     if selected_category is None:
-        cat = '1'
+        cat = config.beschrijving_cat[0]
     else:
         cat = selected_category.get('points')[0].get('label')
-        cat = cat[0]
 
     layout_graph_selected_projects = copy.deepcopy(layout)
     layout_graph_selected_projects_OHW = copy.deepcopy(layout)
@@ -871,16 +862,7 @@ def figures_selected_category(selected_category, filter_selectie):
         ),
     ]
 
-    beschrijving_cat = [
-        "1: Onbetrouwbare 'daling' in deelrevisie",
-        "2: Aangeboden > 0, Goedgekeurd = 0",
-        "3: Deelrevisie > Facturatie, Inkoop",
-        "4: Deelrevisie > Facturatie maar < Inkoop",
-        "5: Deelrevisie < Facturatie, Inkoop"
-    ]
-
-    layout_graph_selected_projects["title"] = "Categorie {} :<br> ({})".format(
-        cat, beschrijving_cat[int(cat[0])-1][3:])
+    layout_graph_selected_projects["title"] = cat
     layout_graph_selected_projects["dragmode"] = "select"
     layout_graph_selected_projects["showlegend"] = True
     layout_graph_selected_projects["autosize"] = True
@@ -913,10 +895,9 @@ def generate_status_table_ext(selected_category, filter_selectie):
     cat_lookup = {'1': 'Cat1', '2': 'Cat2', '3': 'Cat3',
                   '4': 'Cat4', '5': 'Cat5', '6': 'Cat6'}
     if selected_category is None:
-        cat = '1'
+        cat = config.beschrijving_cat[0]
     else:
         cat = selected_category.get('points')[0].get('label')
-        cat = cat[0]
 
     # Alle projecten met OHW
     df_out = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]
@@ -924,7 +905,7 @@ def generate_status_table_ext(selected_category, filter_selectie):
     # Add categorie description and solution action
     df_add = pd.DataFrame(columns=['Categorie', 'Beschrijving categorie',
                                    'Oplosactie'])
-    df_add['Categorie'] = ['Cat1', 'Cat2', 'Cat3', 'Cat4', 'Cat5']
+    df_add['Categorie'] = ['Cat1', 'Cat2', 'Cat3', 'Cat4', 'Cat5', 'Cat6']
     df_add['Beschrijving categorie'] = config.beschrijving_cat
     df_add['Oplosactie'] = config.oplosactie
     df_out = df_out.merge(df_add, on='Categorie', how='left').sort_values(
