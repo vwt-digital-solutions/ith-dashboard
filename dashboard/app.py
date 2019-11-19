@@ -746,6 +746,7 @@ def make_pie_figure(filter_selectie):
             marker=dict(colors=['#003f5c', '#374c80', '#7a5195',
                                 '#bc5090',  '#ef5675']),
             domain={"x": [0, 1], "y": [0.30, 1]},
+            sort=False
         ),
     ]
     layout_pie["title"] = "Categorieen OHW (aantal meters):"
@@ -801,7 +802,7 @@ def figures_selected_category(selected_category, filter_selectie):
                                                             'sum'})
     inkoop = inkoop['Ontvangen'].cumsum().asfreq('D', 'ffill')
     revisie = df_revisie.asfreq('D', 'ffill')
-    OHW = revisie[inkoop.index[0]:inkoop.index[-1]] - inkoop
+    OHW = (revisie - inkoop).dropna()
 
     # Totaal aantal projecten:
     nproj = len(df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)])
