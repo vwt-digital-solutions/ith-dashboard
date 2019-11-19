@@ -801,7 +801,7 @@ def figures_selected_category(selected_category, filter_selectie):
     inkoop = df_inkoop.groupby('LEVERDATUM_ONTVANGST').agg({'Ontvangen':
                                                             'sum'})
     inkoop = inkoop['Ontvangen'].cumsum().asfreq('D', 'ffill')
-    revisie = df_revisie.asfreq('D', 'ffill')
+    revisie = df_revisie.astype(float).asfreq('D', 'ffill')
     OHW = (revisie - inkoop).dropna()
 
     # Totaal aantal projecten:
