@@ -732,13 +732,11 @@ def make_pie_figure(filter_selectie):
     layout_pie = copy.deepcopy(layout)
 
     meters_cat = -df_OHW.groupby('Categorie').agg({'delta_1': 'sum'})
-
     # check for categories that don't exist
     beschrijving_cat = []
     for cat in meters_cat.index:
         matching = [s for s in config.beschrijving_cat if cat in s]
         beschrijving_cat = beschrijving_cat + [matching]
-
     data = [
         dict(
             type="pie",
@@ -785,9 +783,10 @@ def figures_selected_category(selected_category, filter_selectie):
     cat_lookup = {'1': 'Cat1', '2': 'Cat2', '3': 'Cat3',
                   '4': 'Cat4', '5': 'Cat5', '6': 'Cat6'}
     if selected_category is None:
-        cat = config.beschrijving_cat[0]
+        cat = '1'
     else:
         cat = selected_category.get('points')[0].get('label')
+        cat = cat[3]
 
     layout_graph_selected_projects = copy.deepcopy(layout)
     layout_graph_selected_projects_OHW = copy.deepcopy(layout)
@@ -895,9 +894,10 @@ def generate_status_table_ext(selected_category, filter_selectie):
     cat_lookup = {'1': 'Cat1', '2': 'Cat2', '3': 'Cat3',
                   '4': 'Cat4', '5': 'Cat5', '6': 'Cat6'}
     if selected_category is None:
-        cat = config.beschrijving_cat[0]
+        cat = 'Cat1'
     else:
         cat = selected_category.get('points')[0].get('label')
+        cat = cat[3]
 
     # Alle projecten met OHW
     df_out = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]
