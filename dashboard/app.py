@@ -387,7 +387,7 @@ app.layout = html.Div(
 
 
 @cache.memoize()
-def data_from_DB(filter_selectie, flag):
+def data_from_DB(filter_selectie):
     engine = create_engine("mysql+pymysql://{user}:{pw}@localhost/{db}".format(
         user="root",
         pw="",
@@ -504,7 +504,7 @@ def download_excel():
     cat_lookup = {'1': 'Cat1', '2': 'Cat2', '3': 'Cat3',
                   '4': 'Cat4', '5': 'Cat5'}
 
-    df_workflow, _, _, _ = data_from_DB(filter_selectie, flag=0)
+    df_workflow, _, _, _ = data_from_DB(filter_selectie)
     df = df_workflow[df_workflow['Categorie'] == cat_lookup.get(cat)]
 
     # add categorie description and solution action
@@ -538,7 +538,7 @@ def download_excel():
 def download_excel1():
     filter_selectie = flask.request.args.get('filters')
 
-    _, _, _, df_OHW = data_from_DB(filter_selectie, flag=0)
+    _, _, _, df_OHW = data_from_DB(filter_selectie)
     df = df_OHW
 
     # add categorie description and solution action
@@ -569,7 +569,7 @@ def download_excel1():
 
 @app.server.route('/download_excel2')
 def download_excel2():
-    df_workflow, df_inkoop, _, _ = data_from_DB(filter_selectie=None, flag=0)
+    df_workflow, df_inkoop, _, _ = data_from_DB(filter_selectie=None)
     plist = df_workflow[df_workflow['Extra werk'] != 0]['Project'].to_list()
     df = df_inkoop[df_inkoop['PROJECT'].isin(plist)]
     df = df.groupby(['INKOOPORDER', 'PROJECT']).agg({'Ontvangen': 'sum'})
@@ -624,8 +624,7 @@ def make_global_figures(filter_selectie):
     layout_global_projects = copy.deepcopy(layout)
     layout_global_projects_OHW = copy.deepcopy(layout)
 
-    df_workflow, df_inkoop, df_revisie, df_OHW = data_from_DB(
-        filter_selectie, flag=0)
+    df_workflow, df_inkoop, df_revisie, df_OHW = data_from_DB(filter_selectie)
 
     # waardes voor grafieken
     ingeschat = df_OHW['Aangeboden'].sum()
@@ -726,8 +725,7 @@ def make_global_figures(filter_selectie):
 )
 def make_pie_figure(filter_selectie):
 
-    df_workflow, df_inkoop, df_revisie, df_OHW = data_from_DB(
-        filter_selectie, flag=1)
+    df_workflow, df_inkoop, df_revisie, df_OHW = data_from_DB(filter_selectie)
 
     layout_pie = copy.deepcopy(layout)
 
@@ -778,7 +776,7 @@ def make_pie_figure(filter_selectie):
 def figures_selected_category(selected_category, filter_selectie):
 
     df_workflow, df_inkoop, df_revisie, df_OHW = data_from_DB(
-        filter_selectie, flag=0)
+        filter_selectie)
 
     cat_lookup = {'1': 'Cat1', '2': 'Cat2', '3': 'Cat3',
                   '4': 'Cat4', '5': 'Cat5', '6': 'Cat6'}
@@ -889,7 +887,7 @@ def figures_selected_category(selected_category, filter_selectie):
 def generate_status_table_ext(selected_category, filter_selectie):
 
     df_workflow, df_inkoop, df_revisie, df_OHW = data_from_DB(
-        selected_category, flag=0)
+        selected_category)
 
     cat_lookup = {'1': 'Cat1', '2': 'Cat2', '3': 'Cat3',
                   '4': 'Cat4', '5': 'Cat5', '6': 'Cat6'}
