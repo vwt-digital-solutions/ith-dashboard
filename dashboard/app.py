@@ -559,11 +559,16 @@ def make_global_figures(filter_selectie):
     df_revisie = pd.read_csv(config.revisie_csv)
     df_workflow = pd.read_csv(config.workflow_csv)
 
-    df_inkoop.index = pd.to_datetime(df_inkoop.set_index(['LEVERDATUM_ONTVANGST']).index)
-    df_inkoop.drop(columns=['LEVERDATUM_ONTVANGST'], axis=1, inplace=True)
-    df_revisie.index = pd.to_datetime(df_revisie.set_index(['Datum']).index)
-    df_revisie.drop(columns=['Datum'], axis=1, inplace=True)
-    df_revisie = df_revisie.astype('float')
+    # rewrite because of csv file
+    df_inkoop['LEVERDATUM_ONTVANGST'] = pd.to_datetime(df_inkoop['LEVERDATUM_ONTVANGST'])
+    df_revisie['Datum'] = pd.to_datetime(df_revisie['Datum'])
+    df_revisie['Projectnummer'] = df_revisie['Projectnummer'].astype('str')
+    df_revisie['delta'] = df_revisie['delta'].astype('float')
+
+    # copy df for storage in the dcc.store
+    df_inkoop_store = df_inkoop.copy()
+    df_revisie_store = df_revisie.copy()
+    df_workflow_store = df_workflow.copy()
 
     # code voor het maken van het nulpunt...projecten met 0 inkoop en 0 gefactureerd...
     # df_workflow[~((df_workflow['Gefactureerd totaal'] == 0) & (df_workflow['Ingekocht'] == 0))]['Project']
@@ -589,23 +594,21 @@ def make_global_figures(filter_selectie):
 
     # Alle projecten met OHW
     projecten = df_OHW['Project'].unique().astype('str')
-    # Alle df_inkoop orders
+    # Juist projecten uit inkoop halen
     df_inkoop = df_inkoop[df_inkoop['PROJECT'].isin(projecten)]
     if df_inkoop.empty:
         df_inkoop.loc['30-10-2019'] = df_inkoop.loc['31-10-2019'] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         df_inkoop.index = pd.to_datetime(df_inkoop.index)
+    df_inkoop.sort_values('LEVERDATUM_ONTVANGST', inplace=True)
 
-    # df_revisies
-    projecten = set(projecten) - (set(projecten) - set(df_revisie.columns))
-    df_revisie = df_revisie[list(projecten)]
+    # Juiste projecten uit revisie halen
+    df_revisie = df_revisie[df_revisie['Projectnummer'].isin(projecten)]
+    df_revisie = df_revisie[['Datum', 'delta']]
+    df_revisie.sort_values('Datum', inplace=True)
 
     # waardes voor grafieken
     ingeschat = df_OHW['Aangeboden'].sum()
     gefactureerd = df_OHW['Gefactureerd totaal'].sum()
-    inkoop = df_inkoop.groupby('LEVERDATUM_ONTVANGST').agg({'Ontvangen': 'sum'})
-    inkoop = inkoop['Ontvangen'].cumsum().asfreq('D', 'ffill')
-    revisie = df_revisie.sum(axis=1).asfreq('D', 'ffill')
-    OHW = revisie[inkoop.index[0]:inkoop.index[-1]] - inkoop
 
     # Totaal aantal projecten:
     nproj = df_workflow['Project'].nunique()
@@ -616,19 +619,29 @@ def make_global_figures(filter_selectie):
     # totaal OHW meters:
     totOHW = -df_OHW['delta_1'].sum().round(0)
 
+    # OHW lijn
+    temp_inkoop = df_inkoop[['LEVERDATUM_ONTVANGST', 'Ontvangen']].rename(columns={
+        'LEVERDATUM_ONTVANGST': 'Datum',
+        'Ontvangen': 'delta'
+    })
+    temp_revisie = df_revisie.copy()
+    temp_revisie['delta'] = -temp_revisie['delta']
+    OHW = temp_inkoop.append(temp_revisie)
+    OHW.sort_values('Datum', inplace=True)
+
     data1 = [
         dict(
             type="line",
-            x=inkoop.index,
-            y=inkoop,
+            x=df_inkoop['LEVERDATUM_ONTVANGST'],
+            y=df_inkoop['Ontvangen'].cumsum(),
             name="Ingekocht",
             opacity=0.5,
             hoverinfo="skip",
         ),
         dict(
             type="line",
-            x=revisie.index[3:],
-            y=revisie,
+            x=df_revisie['Datum'],
+            y=df_revisie['delta'].cumsum(),
             name="deelrevisies Totaal",
             opacity=0.5,
             hoverinfo="skip",
@@ -655,8 +668,8 @@ def make_global_figures(filter_selectie):
     data2 = [
         dict(
             type="line",
-            x=OHW.index,
-            y=-OHW,
+            x=OHW['Datum'],
+            y=OHW['delta'].cumsum(),
             name="OHW",
             opacity=0.5,
             hoverinfo="skip",
@@ -680,17 +693,16 @@ def make_global_figures(filter_selectie):
     figure2 = dict(data=data2, layout=layout_global_projects_OHW)
     stats = {'0': str(nproj), '1': str(nOHW), '2': str(noverfac), '3': str(totOHW)}
 
-    df_inkoop.reset_index(inplace=True)
-    df_inkoop['LEVERDATUM_ONTVANGST'] = df_inkoop['LEVERDATUM_ONTVANGST'].astype('str')
-    df_revisie.index = df_revisie.index.map(str)
+    df_inkoop_store['LEVERDATUM_ONTVANGST'] = df_inkoop_store['LEVERDATUM_ONTVANGST'].astype('str')
+    df_revisie_store['Datum'] = df_revisie_store['Datum'].astype('str')
 
     return [
         figure1,
         figure2,
         stats,
-        df_workflow.to_dict(),
-        df_inkoop.to_dict(),
-        df_revisie.to_dict(),
+        df_workflow_store.to_dict(),
+        df_inkoop_store.to_dict(),
+        df_revisie_store.to_dict(),
         pcodes_nulpunt.to_dict(),
     ]
 
@@ -756,6 +768,7 @@ def make_pie_figure(filter_selectie, df_workflow, pcodes_nulpunt):
             hole=0.5,
             marker=dict(colors=['#003f5c', '#374c80', '#7a5195',  '#bc5090',  '#ef5675']),
             domain={"x": [0, 1], "y": [0.30, 1]},
+            sort=False
         ),
     ]
     layout_pie["title"] = "Categorieen OHW (aantal meters):"
@@ -811,12 +824,14 @@ def figures_selected_category(selected_category, filter_selectie, df_workflow, d
     df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
     df_inkoop = pd.DataFrame(df_inkoop)
     df_revisie = pd.DataFrame(df_revisie)
-
+    print(df_revisie)
     pcodes_nulpunt = pd.DataFrame(pcodes_nulpunt)
 
-    df_inkoop.index = pd.to_datetime(df_inkoop.set_index(['LEVERDATUM_ONTVANGST']).index)
-    df_inkoop.drop(columns=['LEVERDATUM_ONTVANGST'], axis=1, inplace=True)
-    df_revisie.index = pd.to_datetime(df_revisie.index)
+    # rewrite because of csv file
+    df_inkoop['LEVERDATUM_ONTVANGST'] = pd.to_datetime(df_inkoop['LEVERDATUM_ONTVANGST'])
+    df_revisie['Datum'] = pd.to_datetime(df_revisie['Datum'])
+    df_revisie['Projectnummer'] = df_revisie['Projectnummer'].astype('str')
+    df_revisie['delta'] = df_revisie['delta'].astype('float')
 
     if 'NL' in filter_selectie:
         df_workflow = df_workflow[~df_workflow['Project'].isin((pcodes_nulpunt['project'].unique()))]
@@ -837,47 +852,53 @@ def figures_selected_category(selected_category, filter_selectie, df_workflow, d
     # Alle projecten met OHW
     projecten = df_OHW[df_OHW['Categorie'] == cat[0:4]]['Project'].astype('str')
 
-    # Alle inkoop orders
+    # Juist projecten uit inkoop halen
     df_inkoop = df_inkoop[df_inkoop['PROJECT'].isin(projecten)]
     if df_inkoop.empty:
         df_inkoop.loc['30-10-2019'] = df_inkoop.loc['31-10-2019'] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        df_inkoop.index = pd.to_datetime(df_inkoop.index)
+    df_inkoop.sort_values('LEVERDATUM_ONTVANGST', inplace=True)
 
-    # revisie
-    projecten = set(projecten) - (set(projecten) - set(df_revisie.columns))
-    df_revisie = df_revisie[list(projecten)]
+    # Juiste projecten uit revisie halen
+    df_revisie = df_revisie[df_revisie['Projectnummer'].isin(projecten)]
+    df_revisie = df_revisie[['Datum', 'delta']]
+    df_revisie.sort_values('Datum', inplace=True)
 
     # waardes voor grafieken
     ingeschat = df_OHW[df_OHW['Categorie'] == cat[0:4]]['Aangeboden'].sum()
     gefactureerd = df_OHW[df_OHW['Categorie'] == cat[0:4]]['Gefactureerd totaal'].sum()
-    inkoop = df_inkoop.groupby('LEVERDATUM_ONTVANGST').agg({'Ontvangen': 'sum'})
-    # inkoop = df_inkoop.groupby(df_inkoop.index).agg({'Ontvangen':'sum'})
-    inkoop = inkoop['Ontvangen'].cumsum().asfreq('D', 'ffill')
-    revisie = df_revisie.sum(axis=1).asfreq('D', 'ffill')
-    OHW = revisie[inkoop.index[0]:inkoop.index[-1]] - inkoop
 
     # Totaal aantal projecten:
     nproj = len(projecten)
     # Aantal meters OHW in deze selectie:
-    mOHW = -OHW[-1].round(0)
+    mOHW = 10   #df_OHW[df_OHW['Categorie'] == cat[0:4]]['OHW'].sum().round(0)
     # Aantal projecten met positieve OHW:
-    ntotmi = inkoop[-1].round(0)
+    ntotmi = -999999999
     # meerwerk in deze categorie
     meerw = df_OHW[df_OHW['Categorie'] == cat[0:4]]['Extra werk'].sum().round(0)
+
+    # OHW lijn
+    temp_inkoop = df_inkoop[['LEVERDATUM_ONTVANGST', 'Ontvangen']].rename(columns={
+        'LEVERDATUM_ONTVANGST': 'Datum',
+        'Ontvangen': 'delta'
+    })
+    temp_revisie = df_revisie.copy()
+    temp_revisie['delta'] = -temp_revisie['delta']
+    OHW = temp_inkoop.append(temp_revisie)
+    OHW.sort_values('Datum', inplace=True)
 
     data1 = [
         dict(
             type="line",
-            x=inkoop.index,
-            y=inkoop,
+            x=df_inkoop['LEVERDATUM_ONTVANGST'],
+            y=df_inkoop['Ontvangen'].cumsum(),
             name="Ingekocht",
             opacity=0.5,
             hoverinfo="skip",
         ),
         dict(
             type="line",
-            x=revisie.index[3:],
-            y=revisie,
+            x=df_revisie['Datum'],
+            y=df_revisie['delta'].cumsum(),
             name="deelrevisies Totaal",
             opacity=0.5,
             hoverinfo="skip",
@@ -903,8 +924,8 @@ def figures_selected_category(selected_category, filter_selectie, df_workflow, d
     data2 = [
         dict(
             type="line",
-            x=OHW.index,
-            y=-OHW,
+            x=OHW['Datum'],
+            y=OHW['delta'].cumsum(),
             name="OHW",
             opacity=0.5,
             hoverinfo="skip",
