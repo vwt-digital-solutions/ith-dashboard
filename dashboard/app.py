@@ -226,7 +226,7 @@ app.layout = html.Div(
                 html.Div(
                     [
                         html.H5(
-                            "Eerst analyseren we de totale set van projecten in workflow t.o.v. geulen graven:",
+                            "Totaal overzicht OHW analyse",
                             style={"margin-top": "0px"}
                         ),
                     ],
@@ -256,18 +256,18 @@ app.layout = html.Div(
                             id="info_globaal_container1",
                             className="pretty_container 3 columns",
                         ),
-                        html.Div(
-                            [
-                                html.H6(id="info_globaal_2"),
-                                html.P("Aantal projecten met overfacturatie")
-                            ],
-                            id="info_globaal_container2",
-                            className="pretty_container 3 columns",
-                        ),
+                        # html.Div(
+                        #     [
+                        #         html.H6(id="info_globaal_2"),
+                        #         html.P("Aantal projecten met overfacturatie")
+                        #     ],
+                        #     id="info_globaal_container2",
+                        #     className="pretty_container 3 columns",
+                        # ),
                         html.Div(
                             [
                                 html.H6(id="info_globaal_3"),
-                                html.P("Totaal aantal meter OHW (op basis van (deel)revisies)")
+                                html.P("Totaal aantal meter OHW")
                             ],
                             id="info_globaal_container3",
                             className="pretty_container 3 columns",
@@ -298,8 +298,7 @@ app.layout = html.Div(
                     [
                         html.H5(
                             """
-                            Vervolgens kan deze set van projecten onderzocht worden
-                            op basis van verschillende categorieen, oorzaak OHW:
+                            Categorisering van de projecten met OHW:
                             """,
                             style={"margin-top": "0px"}
                         ),
@@ -316,30 +315,30 @@ app.layout = html.Div(
                     [
                         html.Div(
                             [
-                                html.H6(id="info_bakje_0"),
-                                html.P("Aantal meters meerwerk in de geselecteerde categorie")
-                            ],
-                            className="pretty_container 3 columns",
-                        ),
-                        html.Div(
-                            [
                                 html.H6(id="info_bakje_1"),
                                 html.P("Aantal projecten in deze categorie")
 
                             ],
                             className="pretty_container 3 columns",
                         ),
+                        # html.Div(
+                        #     [
+                        #         html.H6(id="info_bakje_2"),
+                        #         html.P("Totaal aantal meters in deze categorie")
+                        #     ],
+                        #     className="pretty_container 3 columns",
+                        # ),
                         html.Div(
                             [
-                                html.H6(id="info_bakje_2"),
-                                html.P("Totaal aantal meters in deze categorie")
+                                html.H6(id="info_bakje_3"),
+                                html.P("Totaal aantal meters OHW")
                             ],
                             className="pretty_container 3 columns",
                         ),
                         html.Div(
                             [
-                                html.H6(id="info_bakje_3"),
-                                html.P("Totaal aantal meters OHW  (op basis van deelrevisies)")
+                                html.H6(id="info_bakje_0"),
+                                html.P("Aantal meters meerwerk in de geselecteerde categorie")
                             ],
                             className="pretty_container 3 columns",
                         ),
@@ -824,7 +823,6 @@ def figures_selected_category(selected_category, filter_selectie, df_workflow, d
     df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
     df_inkoop = pd.DataFrame(df_inkoop)
     df_revisie = pd.DataFrame(df_revisie)
-    print(df_revisie)
     pcodes_nulpunt = pd.DataFrame(pcodes_nulpunt)
 
     # rewrite because of csv file
@@ -870,7 +868,7 @@ def figures_selected_category(selected_category, filter_selectie, df_workflow, d
     # Totaal aantal projecten:
     nproj = len(projecten)
     # Aantal meters OHW in deze selectie:
-    mOHW = 10   #df_OHW[df_OHW['Categorie'] == cat[0:4]]['OHW'].sum().round(0)
+    mOHW = -df_OHW[df_OHW['Categorie'] == cat[0:4]]['delta_1'].sum().round(0)
     # Aantal projecten met positieve OHW:
     ntotmi = -999999999
     # meerwerk in deze categorie
