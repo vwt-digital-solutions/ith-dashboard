@@ -9,12 +9,13 @@ import config
 import datetime as dt
 import pandas as pd
 import dash_core_components as dcc
+import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_table
 
 from flask import send_file
 from google.cloud import kms_v1
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 from authentication.azure_auth import AzureOAuth
 from elements import table_styles
@@ -264,6 +265,23 @@ app.layout = html.Div(
                             """,
                             style={"margin-top": "0px"}
                         ),
+                        html.Div(
+                            [
+                                dbc.Button(
+                                    'Uitleg categorieën',
+                                    id='uitleg_button'
+                                ),
+                                html.Div(
+                                    [
+                                        dcc.Markdown(
+                                            config.uitleg_categorie
+                                        )
+                                    ],
+                                    id='uitleg_collapse',
+                                    hidden=True,
+                                )
+                            ],
+                        ),
                     ],
                     id='uitleg_2',
                     className="pretty_container 1 columns",
@@ -333,6 +351,18 @@ app.layout = html.Div(
     id="mainContainer",
     style={"display": "flex", "flex-direction": "column"},
 )
+
+
+# Collapse callback function
+@app.callback(
+    Output("uitleg_collapse", "hidden"),
+    [Input("uitleg_button", "n_clicks")],
+    [State("uitleg_collapse", "hidden")],
+)
+def toggle_collapse(n, is_open):
+    if n:
+        return not is_open
+    return is_open
 
 
 # Download function
