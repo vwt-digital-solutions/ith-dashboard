@@ -225,10 +225,10 @@ app.layout = html.Div(
             [
                 html.Div(
                     [
-                        html.H5("""Eerst analyseren we de totale set van projecten
-                                     in workflow t.o.v. geulen graven:""",
-                                style={"margin-top": "0px"}
-                                ),
+                        html.H5(
+                            "Totaal overzicht OHW analyse",
+                            style={"margin-top": "0px"}
+                        ),
                     ],
                     id='uitleg_1',
                     className="pretty_container 1 columns",
@@ -258,17 +258,8 @@ app.layout = html.Div(
                         ),
                         html.Div(
                             [
-                                html.H6(id="info_globaal_2"),
-                                html.P("Aantal projecten met overfacturatie")
-                            ],
-                            id="info_globaal_container2",
-                            className="pretty_container 3 columns",
-                        ),
-                        html.Div(
-                            [
                                 html.H6(id="info_globaal_3"),
-                                html.P("""Totaal aantal meter OHW
-                                         (op basis van deelrevisies)""")
+                                html.P("Totaal aantal meter OHW")
                             ],
                             id="info_globaal_container3",
                             className="pretty_container 3 columns",
@@ -299,9 +290,7 @@ app.layout = html.Div(
                     [
                         html.H5(
                             """
-                            Vervolgens kan deze set van projecten onderzocht
-                             worden op basis van verschillende categorieen,
-                             oorzaak OHW:
+                            Categorisering van de projecten met OHW:
                             """,
                             style={"margin-top": "0px"}
                         ),
@@ -318,14 +307,6 @@ app.layout = html.Div(
                     [
                         html.Div(
                             [
-                                html.H6(id="info_bakje_0"),
-                                html.P("""Aantal meters meerwerk in
-                                         de geselecteerde categorie""")
-                            ],
-                            className="pretty_container 3 columns",
-                        ),
-                        html.Div(
-                            [
                                 html.H6(id="info_bakje_1"),
                                 html.P("Aantal projecten in deze categorie")
 
@@ -334,17 +315,16 @@ app.layout = html.Div(
                         ),
                         html.Div(
                             [
-                                html.H6(id="info_bakje_2"),
-                                html.P("""Totaal aantal meters in
-                                         deze categorie""")
+                                html.H6(id="info_bakje_3"),
+                                html.P("Totaal aantal meters OHW")
                             ],
                             className="pretty_container 3 columns",
                         ),
                         html.Div(
                             [
-                                html.H6(id="info_bakje_3"),
-                                html.P("""Totaal aantal meters OHW
-                                         (op basis van deelrevisies)""")
+                                html.H6(id="info_bakje_0"),
+                                html.P("""Aantal meters meerwerk in
+                                         de geselecteerde categorie""")
                             ],
                             className="pretty_container 3 columns",
                         ),
@@ -388,61 +368,82 @@ app.layout = html.Div(
 
 @cache.memoize()
 def data_from_DB(filter_selectie):
-    engine = create_engine("mysql+pymysql://{user}:{pw}@localhost/{db}".format(
-        user="root",
-        pw="",
-        db="ith_database_test"))
-    connection = engine.connect()
-    metadata = db.MetaData()
-    workflow = db.Table('workflow', metadata, autoload=True,
-                        autoload_with=engine)
-    query = db.select([workflow])
-    resultproxy = connection.execute(query)
-    resultset = resultproxy.fetchall()
-    df_workflow = pd.DataFrame(resultset)
-    df_workflow.columns = resultset[0].keys()
-    df_workflow = df_workflow.set_index('ImportId')
+    test = 0
+
+    if test == 0:
+        engine = create_engine("mysql+pymysql://{user}:{pw}@localhost/{db}".format(
+            user="root",
+            pw="",
+            db="ith_database_test"))
+        connection = engine.connect()
+        metadata = db.MetaData()
+        workflow = db.Table('workflow', metadata, autoload=True,
+                            autoload_with=engine)
+        query = db.select([workflow])
+        resultproxy = connection.execute(query)
+        resultset = resultproxy.fetchall()
+        df_workflow = pd.DataFrame(resultset)
+        df_workflow.columns = resultset[0].keys()
+        df_workflow = df_workflow.set_index('ImportId')
+
+    if test == 1:
+        df_workflow = pd.read_csv(config.workflow_csv)
+
     df_workflow = df_workflow.astype({'delta_1': 'float',
                                       'Extra werk': 'float',
                                       'Ingekocht': 'float',
                                       'Aangeboden': 'float',
                                       'Gefactureerd totaal': 'float',
-                                      'Revisie totaal': 'float'})
+                                      'Revisie totaal': 'float',
+                                      'Project': 'str'})
 
-    inkoop = db.Table('inkoop', metadata, autoload=True,
-                      autoload_with=engine)
-    query = db.select([inkoop])
-    resultproxy = connection.execute(query)
-    resultset = resultproxy.fetchall()
-    df_inkoop = pd.DataFrame(resultset)
-    df_inkoop.columns = resultset[0].keys()
-    df_inkoop = df_inkoop.set_index('LEVERDATUM_ONTVANGST').drop(
-        ['ImportId'], axis=1)
+    if test == 0:
+        inkoop = db.Table('inkoop', metadata, autoload=True,
+                        autoload_with=engine)
+        query = db.select([inkoop])
+        resultproxy = connection.execute(query)
+        resultset = resultproxy.fetchall()
+        df_inkoop = pd.DataFrame(resultset)
+        df_inkoop.columns = resultset[0].keys()
+        df_inkoop = df_inkoop.set_index('LEVERDATUM_ONTVANGST').drop(
+            ['ImportId'], axis=1)
+
+    if test == 1:
+        df_inkoop = pd.read_csv(config.inkoop_csv)
+        df_inkoop = df_inkoop.set_index('LEVERDATUM_ONTVANGST')
+
     df_inkoop.index = pd.to_datetime(df_inkoop.index)
-    df_inkoop = df_inkoop.astype({'Ontvangen': 'float'})
+    df_inkoop = df_inkoop.astype({'Ontvangen': 'float', 'PROJECT': 'str'})
 
-    revisie = db.Table('revisie', metadata, autoload=True,
-                       autoload_with=engine)
-    query = db.select([revisie]).order_by(db.asc(revisie.columns.Datum))
-    resultproxy = connection.execute(query)
-    resultset = resultproxy.fetchall()
-    df_revisie = pd.DataFrame(resultset)
-    df_revisie.columns = resultset[0].keys()
-    df_revisie = df_revisie.set_index('Datum').drop(['ImportId'], axis=1)
+    if test == 0:
+        revisie = db.Table('revisie', metadata, autoload=True,
+                        autoload_with=engine)
+        query = db.select([revisie]).order_by(db.asc(revisie.columns.Datum))
+        resultproxy = connection.execute(query)
+        resultset = resultproxy.fetchall()
+        df_revisie = pd.DataFrame(resultset)
+        df_revisie.columns = resultset[0].keys()
+        df_revisie = df_revisie.set_index('Datum').drop(['ImportId'], axis=1)
+
+    if test == 1:
+        df_revisie = pd.read_csv(config.revisie_csv)
+        df_revisie = df_revisie.set_index('Datum').drop(
+            ['Unnamed: 0'], axis=1).sort_values(by='Datum')
+
     df_revisie.index = pd.to_datetime(df_revisie.index)
-    df_revisie = df_revisie.astype({'Cat1': 'float',
-                                    'Cat2': 'float',
-                                    'Cat3': 'float',
-                                    'Cat4': 'float',
-                                    'Cat5': 'float',
-                                    'Totaal': 'float'})
-    nulpunt = db.Table('nulpunt', metadata, autoload=True,
-                       autoload_with=engine)
-    query = db.select([nulpunt])
-    resultproxy = connection.execute(query)
-    resultset = resultproxy.fetchall()
-    pcodes_geen_nulpunt = pd.DataFrame(resultset)
-    pcodes_geen_nulpunt.columns = resultset[0].keys()
+    df_revisie = df_revisie.astype({'delta': 'float'})
+
+    if test == 0:
+        nulpunt = db.Table('nulpunt', metadata, autoload=True,
+                        autoload_with=engine)
+        query = db.select([nulpunt])
+        resultproxy = connection.execute(query)
+        resultset = resultproxy.fetchall()
+        pcodes_geen_nulpunt = pd.DataFrame(resultset)
+        pcodes_geen_nulpunt.columns = resultset[0].keys()
+
+    if test == 1:
+        pcodes_geen_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
 
     # apply filters
     if filter_selectie is None:
@@ -450,7 +451,8 @@ def data_from_DB(filter_selectie):
     if 'NL' in filter_selectie:
         df_workflow = df_workflow[
             ~df_workflow['Project'].isin((
-                pcodes_geen_nulpunt['Project'].unique()))]
+                # pcodes_geen_nulpunt['Project'].unique()))]
+                pcodes_geen_nulpunt['project'].unique()))]
     if 'AF_1' in filter_selectie:
         df_workflow = df_workflow[
             ~(df_workflow['Hoe afgehecht'] == 'Administratief Afhechting')]
@@ -465,6 +467,7 @@ def data_from_DB(filter_selectie):
     mask = df_OHW['Project'].to_list()
 
     df_inkoop = df_inkoop[df_inkoop['PROJECT'].isin(mask)]
+    df_revisie = df_revisie[df_revisie['Projectnummer'].isin(mask)]
 
     return df_workflow, df_inkoop, df_revisie, df_OHW
 
@@ -632,8 +635,8 @@ def make_global_figures(filter_selectie):
     inkoop = df_inkoop.groupby('LEVERDATUM_ONTVANGST').agg(
         {'Ontvangen': 'sum'})
     inkoop = inkoop['Ontvangen'].cumsum().asfreq('D', 'ffill')
-    revisie = df_revisie['Totaal'].asfreq('D', 'ffill')
-    OHW = revisie[inkoop.index[0]:inkoop.index[-1]] - inkoop
+    revisie = df_revisie['delta'].resample('D').sum().cumsum()
+    OHW = (revisie - inkoop).dropna()
 
     # Totaal aantal projecten:
     nproj = df_workflow['Project'].nunique()
@@ -655,7 +658,7 @@ def make_global_figures(filter_selectie):
         ),
         dict(
             type="line",
-            x=revisie.index[3:],
+            x=revisie.index,
             y=revisie,
             name="deelrevisies Totaal",
             opacity=0.5,
@@ -709,11 +712,7 @@ def make_global_figures(filter_selectie):
     stats = {'0': str(nproj), '1': str(nOHW),
              '2': str(noverfac), '3': str(totOHW)}
 
-    return [
-        figure1,
-        figure2,
-        stats
-    ]
+    return [figure1, figure2, stats]
 
 
 # Callback voor taartdiagram
@@ -730,11 +729,13 @@ def make_pie_figure(filter_selectie):
     layout_pie = copy.deepcopy(layout)
 
     meters_cat = -df_OHW.groupby('Categorie').agg({'delta_1': 'sum'})
+
     # check for categories that don't exist
     beschrijving_cat = []
     for cat in meters_cat.index:
         matching = [s for s in config.beschrijving_cat if cat in s]
         beschrijving_cat = beschrijving_cat + [matching]
+
     data = [
         dict(
             type="pie",
@@ -749,6 +750,7 @@ def make_pie_figure(filter_selectie):
             sort=False
         ),
     ]
+
     layout_pie["title"] = "Categorieen OHW (aantal meters):"
     layout_pie["clickmode"] = "event+select"
     layout_pie["font"] = dict(color="#777777")
@@ -763,6 +765,7 @@ def make_pie_figure(filter_selectie):
     layout_pie["showlegend"] = True
     layout_pie["height"] = 500
     figure = dict(data=data, layout=layout_pie)
+
     return figure
 
 
@@ -791,8 +794,8 @@ def figures_selected_category(selected_category, filter_selectie):
     layout_graph_selected_projects_OHW = copy.deepcopy(layout)
 
     df_OHW = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]
-    df_revisie = df_revisie[cat_lookup.get(cat)]
     mask = df_OHW['Project'].to_list()
+    df_revisie = df_revisie[df_revisie['Projectnummer'].isin(mask)]
     df_inkoop = df_inkoop[df_inkoop['PROJECT'].isin(mask)]
 
     # waardes voor grafieken
@@ -801,15 +804,15 @@ def figures_selected_category(selected_category, filter_selectie):
     inkoop = df_inkoop.groupby('LEVERDATUM_ONTVANGST').agg({'Ontvangen':
                                                             'sum'})
     inkoop = inkoop['Ontvangen'].cumsum().asfreq('D', 'ffill')
-    revisie = df_revisie.astype(float).asfreq('D', 'ffill')
+    revisie = df_revisie['delta'].resample('D').sum().cumsum()
     OHW = (revisie - inkoop).dropna()
 
     # Totaal aantal projecten:
     nproj = len(df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)])
     # Aantal meters OHW in deze selectie:
-    mOHW = -OHW[-1].round(0)
+    mOHW = -df_OHW[df_OHW['Categorie'] == cat[0:4]]['delta_1'].sum().round(0)
     # Aantal projecten met positieve OHW:
-    ntotmi = inkoop[-1].round(0)
+    ntotmi = -999999999
     # meerwerk in deze categorie
     meerw = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]
     meerw = meerw['Extra werk'].sum().round(0)
@@ -825,7 +828,7 @@ def figures_selected_category(selected_category, filter_selectie):
         ),
         dict(
             type="line",
-            x=revisie.index[3:],
+            x=revisie.index,
             y=revisie,
             name="deelrevisies Totaal",
             opacity=0.5,
