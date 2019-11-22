@@ -9,12 +9,13 @@ import config
 import datetime as dt
 import pandas as pd
 import dash_core_components as dcc
+import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_table
 
 from flask import send_file
 from google.cloud import kms_v1
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 from authentication.azure_auth import AzureOAuth
 from elements import table_styles
 from flask_caching import Cache
@@ -118,6 +119,8 @@ app.layout = html.Div(
                                     "Glasvezel nieuwbouw",
                                     style={"margin-top": "0px"}
                                 ),
+                                html.P(),
+                                html.P("(Laatste nieuwe data: 14-11-2019)")
                             ],
                             style={"margin-left": "-120px"},
                         )
@@ -136,9 +139,9 @@ app.layout = html.Div(
                     [
                         html.Div(
                             [
-                                html.H6(id="filter"),
+                                html.H6(id="filters"),
                                 html.P("Filters:"),
-                                dcc.Checklist(
+                                dcc.Dropdown(
                                     options=[
                                         {'label': 'Vanaf nul punt [NL]',
                                             'value': 'NL'},
@@ -157,6 +160,7 @@ app.layout = html.Div(
                                     ],
                                     id='checklist_filters',
                                     value=['AF_1', 'AF_2', 'AF_3'],
+                                    multi=True,
                                 ),
                             ],
                             id="filter_container",
@@ -226,7 +230,7 @@ app.layout = html.Div(
                 html.Div(
                     [
                         html.H5(
-                            "Totaal overzicht OHW analyse",
+                            "Totaal overzicht OHW analyse:",
                             style={"margin-top": "0px"}
                         ),
                     ],
@@ -258,10 +262,10 @@ app.layout = html.Div(
                         ),
                         html.Div(
                             [
-                                html.H6(id="info_globaal_3"),
+                                html.H6(id="info_globaal_2"),
                                 html.P("Totaal aantal meter OHW")
                             ],
-                            id="info_globaal_container3",
+                            id="info_globaal_container2",
                             className="pretty_container 3 columns",
                         ),
                     ],
@@ -307,7 +311,7 @@ app.layout = html.Div(
                     [
                         html.Div(
                             [
-                                html.H6(id="info_bakje_1"),
+                                html.H6(id="info_bakje_0"),
                                 html.P("Aantal projecten in deze categorie")
 
                             ],
@@ -315,7 +319,7 @@ app.layout = html.Div(
                         ),
                         html.Div(
                             [
-                                html.H6(id="info_bakje_3"),
+                                html.H6(id="info_bakje_1"),
                                 html.P("Totaal aantal meters OHW")
                             ],
                             className="pretty_container 3 columns",
@@ -337,7 +341,26 @@ app.layout = html.Div(
         html.Div(
             [
                 html.Div(
-                    [dcc.Graph(id="pie_graph")],
+                    [
+                        dcc.Graph(id="pie_graph"),
+                        html.Div(
+                            [
+                                dbc.Button(
+                                    'Uitleg categorieën',
+                                    id='uitleg_button'
+                                ),
+                                html.Div(
+                                    [
+                                        dcc.Markdown(
+                                            config.uitleg_categorie
+                                        )
+                                    ],
+                                    id='uitleg_collapse',
+                                    hidden=True,
+                                )
+                            ],
+                        ),
+                    ],
                     className="pretty_container 4 columns",
                 ),
                 html.Div(
@@ -467,7 +490,17 @@ def data_from_DB(filter_selectie):
     return df_workflow, df_inkoop, df_revisie, df_OHW
 
 
-# Download function
+@app.callback(
+    Output("uitleg_collapse", "hidden"),
+    [Input("uitleg_button", "n_clicks")],
+    [State("uitleg_collapse", "hidden")],
+)
+def toggle_collapse(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
+
 @app.callback(
     [
         Output('download-link', 'href'),
@@ -592,16 +625,18 @@ def download_excel2():
 
 # Update info containers
 @app.callback(
-    [Output("info_globaal_0", "children"),
-     Output("info_globaal_1", "children"),
-     Output("info_globaal_2", "children"),
-     Output("info_globaal_3", "children"),
-     Output("info_bakje_0", "children"),
-     Output("info_bakje_1", "children"),
-     Output("info_bakje_2", "children"),
-     Output("info_bakje_3", "children")],
-    [Input("aggregate_data", "data"),
-     Input("aggregate_data2", "data")],
+    [
+        Output("info_globaal_0", "children"),
+        Output("info_globaal_1", "children"),
+        Output("info_globaal_2", "children"),
+        Output("info_bakje_0", "children"),
+        Output("info_bakje_1", "children"),
+        Output("info_bakje_2", "children"),
+    ],
+    [
+        Input("aggregate_data", "data"),
+        Input("aggregate_data2", "data")
+    ],
 )
 def update_text(data1, data2):
     return data1['0'] + " projecten", data1['1'] + " projecten", \
@@ -637,8 +672,6 @@ def make_global_figures(filter_selectie):
     nproj = df_workflow['Project'].nunique()
     # Nr projecten met negatieve OHW:
     nOHW = len(df_OHW['Project'].unique())
-    # Nr projecten met positieve OHW:
-    noverfac = df_workflow[df_workflow['delta_1'] > 0]['Project'].nunique()
     # totaal OHW meters:
     totOHW = -df_OHW['delta_1'].sum().round(0)
 
@@ -704,8 +737,7 @@ def make_global_figures(filter_selectie):
 
     figure1 = dict(data=data1, layout=layout_global_projects)
     figure2 = dict(data=data2, layout=layout_global_projects_OHW)
-    stats = {'0': str(nproj), '1': str(nOHW),
-             '2': str(noverfac), '3': str(totOHW)}
+    stats = {'0': str(nproj), '1': str(nOHW), '2': str(totOHW)}
 
     return [figure1, figure2, stats]
 
@@ -806,8 +838,6 @@ def figures_selected_category(selected_category, filter_selectie):
     nproj = len(df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)])
     # Aantal meters OHW in deze selectie:
     mOHW = -df_OHW[df_OHW['Categorie'] == cat[0:4]]['delta_1'].sum().round(0)
-    # Aantal projecten met positieve OHW:
-    ntotmi = -999999999
     # meerwerk in deze categorie
     meerw = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]
     meerw = meerw['Extra werk'].sum().round(0)
@@ -873,7 +903,7 @@ def figures_selected_category(selected_category, filter_selectie):
 
     figure1 = dict(data=data1, layout=layout_graph_selected_projects)
     figure2 = dict(data=data2, layout=layout_graph_selected_projects_OHW)
-    return [figure1, figure2, [str(meerw), str(nproj), str(ntotmi), str(mOHW)]]
+    return [figure1, figure2, [str(nproj), str(mOHW), str(meerw)]]
 
 
 @app.callback(
