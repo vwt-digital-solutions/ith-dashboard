@@ -183,6 +183,7 @@ app.layout = html.Div(
                                     style={"background-color": "#009FDF",
                                            "margin-bottom": "5px",
                                            "display": "block"}
+
                                 ),
                                 html.Button(
                                     html.A(
@@ -649,7 +650,6 @@ def make_global_figures(filter_selectie):
 
     layout_global_projects = copy.deepcopy(layout)
     layout_global_projects_OHW = copy.deepcopy(layout)
-
     df_workflow, df_inkoop, df_revisie, df_OHW = data_from_DB(filter_selectie)
 
     # waardes voor grafieken
@@ -747,7 +747,6 @@ def make_pie_figure(filter_selectie):
     df_workflow, df_inkoop, df_revisie, df_OHW = data_from_DB(filter_selectie)
 
     layout_pie = copy.deepcopy(layout)
-
     meters_cat = -df_OHW.groupby('Categorie').agg({'delta_1': 'sum'})
 
     # check for categories that don't exist
@@ -801,7 +800,6 @@ def figures_selected_category(selected_category, filter_selectie):
 
     df_workflow, df_inkoop, df_revisie, df_OHW = data_from_DB(
         filter_selectie)
-
     cat_lookup = {'1': 'Cat1', '2': 'Cat2', '3': 'Cat3',
                   '4': 'Cat4', '5': 'Cat5', '6': 'Cat6'}
     if selected_category is None:
@@ -817,7 +815,7 @@ def figures_selected_category(selected_category, filter_selectie):
     mask = df_OHW['Project'].to_list()
     df_revisie = df_revisie[df_revisie['Projectnummer'].isin(mask)]
     df_inkoop = df_inkoop[df_inkoop['PROJECT'].isin(mask)]
-
+    
     # waardes voor grafieken
     ingeschat = df_OHW['Aangeboden'].sum()
     gefactureerd = df_OHW['Gefactureerd totaal'].sum()
