@@ -368,15 +368,18 @@ app.layout = html.Div(
 
 @cache.memoize()
 def data_from_DB(filter_selectie):
-    test = 0
+    # 0: loads in data from database and 1: loads in data from csv
+    inladen = 1
 
-    if test == 0:
-        engine = create_engine("mysql+pymysql://{user}:{pw}@localhost/{db}".format(
-            user="root",
-            pw="",
-            db="ith_database_test"))
+    if inladen == 0:
+        engine = create_engine(
+            "mysql+pymysql://{user}:{pw}@localhost/{db}".format(
+                user="root",
+                pw="",
+                db="ith_database_test"))
         connection = engine.connect()
         metadata = db.MetaData()
+
         workflow = db.Table('workflow', metadata, autoload=True,
                             autoload_with=engine)
         query = db.select([workflow])
@@ -386,20 +389,8 @@ def data_from_DB(filter_selectie):
         df_workflow.columns = resultset[0].keys()
         df_workflow = df_workflow.set_index('ImportId')
 
-    if test == 1:
-        df_workflow = pd.read_csv(config.workflow_csv)
-
-    df_workflow = df_workflow.astype({'delta_1': 'float',
-                                      'Extra werk': 'float',
-                                      'Ingekocht': 'float',
-                                      'Aangeboden': 'float',
-                                      'Gefactureerd totaal': 'float',
-                                      'Revisie totaal': 'float',
-                                      'Project': 'str'})
-
-    if test == 0:
         inkoop = db.Table('inkoop', metadata, autoload=True,
-                        autoload_with=engine)
+                          autoload_with=engine)
         query = db.select([inkoop])
         resultproxy = connection.execute(query)
         resultset = resultproxy.fetchall()
@@ -408,16 +399,8 @@ def data_from_DB(filter_selectie):
         df_inkoop = df_inkoop.set_index('LEVERDATUM_ONTVANGST').drop(
             ['ImportId'], axis=1)
 
-    if test == 1:
-        df_inkoop = pd.read_csv(config.inkoop_csv)
-        df_inkoop = df_inkoop.set_index('LEVERDATUM_ONTVANGST')
-
-    df_inkoop.index = pd.to_datetime(df_inkoop.index)
-    df_inkoop = df_inkoop.astype({'Ontvangen': 'float', 'PROJECT': 'str'})
-
-    if test == 0:
         revisie = db.Table('revisie', metadata, autoload=True,
-                        autoload_with=engine)
+                           autoload_with=engine)
         query = db.select([revisie]).order_by(db.asc(revisie.columns.Datum))
         resultproxy = connection.execute(query)
         resultset = resultproxy.fetchall()
@@ -425,25 +408,37 @@ def data_from_DB(filter_selectie):
         df_revisie.columns = resultset[0].keys()
         df_revisie = df_revisie.set_index('Datum').drop(['ImportId'], axis=1)
 
-    if test == 1:
-        df_revisie = pd.read_csv(config.revisie_csv)
-        df_revisie = df_revisie.set_index('Datum').drop(
-            ['Unnamed: 0'], axis=1).sort_values(by='Datum')
-
-    df_revisie.index = pd.to_datetime(df_revisie.index)
-    df_revisie = df_revisie.astype({'delta': 'float'})
-
-    if test == 0:
         nulpunt = db.Table('nulpunt', metadata, autoload=True,
-                        autoload_with=engine)
+                           autoload_with=engine)
         query = db.select([nulpunt])
         resultproxy = connection.execute(query)
         resultset = resultproxy.fetchall()
         pcodes_geen_nulpunt = pd.DataFrame(resultset)
         pcodes_geen_nulpunt.columns = resultset[0].keys()
 
-    if test == 1:
+    if inladen == 1:
+        df_workflow = pd.read_csv(config.workflow_csv)
+
+        df_inkoop = pd.read_csv(config.inkoop_csv)
+        df_inkoop = df_inkoop.set_index('LEVERDATUM_ONTVANGST')
+
+        df_revisie = pd.read_csv(config.revisie_csv)
+        df_revisie = df_revisie.set_index('Datum').drop(
+            ['Unnamed: 0'], axis=1).sort_values(by='Datum')
+
         pcodes_geen_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
+
+    df_workflow = df_workflow.astype({'delta_1': 'float',
+                                      'Extra werk': 'float',
+                                      'Ingekocht': 'float',
+                                      'Aangeboden': 'float',
+                                      'Gefactureerd totaal': 'float',
+                                      'Revisie totaal': 'float',
+                                      'Project': 'str'})
+    df_inkoop.index = pd.to_datetime(df_inkoop.index)
+    df_inkoop = df_inkoop.astype({'Ontvangen': 'float', 'PROJECT': 'str'})
+    df_revisie.index = pd.to_datetime(df_revisie.index)
+    df_revisie = df_revisie.astype({'delta': 'float'})
 
     # apply filters
     if filter_selectie is None:
