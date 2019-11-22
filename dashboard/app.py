@@ -326,7 +326,7 @@ app.layout = html.Div(
                         ),
                         html.Div(
                             [
-                                html.H6(id="info_bakje_0"),
+                                html.H6(id="info_bakje_2"),
                                 html.P("""Aantal meters meerwerk in
                                          de geselecteerde categorie""")
                             ],
@@ -438,6 +438,7 @@ def data_from_DB(filter_selectie):
         resultset = resultproxy.fetchall()
         pcodes_geen_nulpunt = pd.DataFrame(resultset)
         pcodes_geen_nulpunt.columns = resultset[0].keys()
+        pcodes_geen_nulpunt.rename(columns={'Project': 'project'})
 
     if inladen == 1:
         df_workflow = pd.read_csv(config.workflow_csv)
@@ -450,6 +451,7 @@ def data_from_DB(filter_selectie):
             ['Unnamed: 0'], axis=1).sort_values(by='Datum')
 
         pcodes_geen_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
+        pcodes_geen_nulpunt = pcodes_geen_nulpunt.astype(str)
 
     df_workflow = df_workflow.astype({'delta_1': 'float',
                                       'Extra werk': 'float',
@@ -469,8 +471,8 @@ def data_from_DB(filter_selectie):
     if 'NL' in filter_selectie:
         df_workflow = df_workflow[
             ~df_workflow['Project'].isin((
-                # pcodes_geen_nulpunt['Project'].unique()))]
                 pcodes_geen_nulpunt['project'].unique()))]
+        print(pcodes_geen_nulpunt['project'].unique())
     if 'AF_1' in filter_selectie:
         df_workflow = df_workflow[
             ~(df_workflow['Hoe afgehecht'] == 'Administratief Afhechting')]
@@ -515,15 +517,15 @@ def toggle_collapse(n, is_open):
 def update_link(clickData, selected_filters):
 
     if clickData is None:
-        cat = config.beschrijving_cat[0]
+        cat = config.beschrijving_cat[0][0:4]
     else:
-        cat = clickData.get('points')[0].get('label')
+        cat = clickData.get('points')[0].get('label')[0:4]
 
     if selected_filters is None:
         selected_filters = ['empty']
 
-    return ['''/download_excel?categorie={}
-                &filters={}'''.format(cat, selected_filters),
+    return ['''/download_excel?categorie={}&filters={}'''.format(
+            cat, selected_filters),
             '/download_excel1?filters={}'.format(selected_filters),
             '/download_excel2?filters={}'.format(selected_filters)]
 
@@ -532,15 +534,12 @@ def update_link(clickData, selected_filters):
 def download_excel():
     cat = flask.request.args.get('categorie')
     filter_selectie = flask.request.args.get('filters')
-    cat_lookup = {'1': 'Cat1', '2': 'Cat2', '3': 'Cat3',
-                  '4': 'Cat4', '5': 'Cat5'}
 
     df_workflow, _, _, _ = data_from_DB(filter_selectie)
-    df = df_workflow[df_workflow['Categorie'] == cat_lookup.get(cat)]
+    df = df_workflow[df_workflow['Categorie'] == cat]
 
     # add categorie description and solution action
-    df_add = pd.DataFrame(columns=['Categorie',
-                                   'Beschrijving categorie', 'Oplosactie'])
+    df_add = pd.DataFrame(columns=['Categorie', 'Beschrijving categorie'])
     df_add['Categorie'] = ['Cat1', 'Cat2', 'Cat3', 'Cat4', 'Cat5', 'Cat6']
     df_add['Beschrijving categorie'] = config.beschrijving_cat
     df_add['Oplosactie'] = config.oplosactie
@@ -559,7 +558,7 @@ def download_excel():
     # Name download file
     date = dt.datetime.now().strftime('%d-%m-%Y')
     filename = "Info_project_{}_filters_{}_{}.xlsx".format(
-        cat_lookup.get(cat), filter_selectie, date)
+        cat, filter_selectie, date)
     return send_file(strIO,
                      attachment_filename=filename,
                      as_attachment=True)
@@ -573,8 +572,7 @@ def download_excel1():
     df = df_OHW
 
     # add categorie description and solution action
-    df_add = pd.DataFrame(columns=['Categorie',
-                                   'Beschrijving categorie', 'Oplosactie'])
+    df_add = pd.DataFrame(columns=['Categorie', 'Beschrijving categorie'])
     df_add['Categorie'] = ['Cat1', 'Cat2', 'Cat3', 'Cat4', 'Cat5', 'Cat6']
     df_add['Beschrijving categorie'] = config.beschrijving_cat
     df_add['Oplosactie'] = config.oplosactie
@@ -600,11 +598,7 @@ def download_excel1():
 
 @app.server.route('/download_excel2')
 def download_excel2():
-    df_workflow, df_inkoop, _, _ = data_from_DB(filter_selectie=None)
-    plist = df_workflow[df_workflow['Extra werk'] != 0]['Project'].to_list()
-    df = df_inkoop[df_inkoop['PROJECT'].isin(plist)]
-    df = df.groupby(['INKOOPORDER', 'PROJECT']).agg({'Ontvangen': 'sum'})
-    df = df.reset_index()
+    df = pd.read_csv(config.extra_werk_csv)
     df.rename(columns={'Ontvangen': 'Extra werk'}, inplace=True)
 
     # Convert DF
@@ -640,9 +634,9 @@ def download_excel2():
 )
 def update_text(data1, data2):
     return data1['0'] + " projecten", data1['1'] + " projecten", \
-           data1['2'] + " projecten", data1['3'] + " meters", \
-           data2[0] + " meters", data2[1] + " projecten", \
-           data2[2] + " meters", data2[3] + " meters"
+           data1['2'] + " meter", \
+           data2[0] + " projecten", data2[1] + " meter", \
+           data2[2] + " meter"
 
 
 # Callback voor globale grafieken
@@ -673,7 +667,7 @@ def make_global_figures(filter_selectie):
     # Nr projecten met negatieve OHW:
     nOHW = len(df_OHW['Project'].unique())
     # totaal OHW meters:
-    totOHW = -df_OHW['delta_1'].sum().round(0)
+    totOHW = -df_OHW['delta_1'].sum().astype(int)
 
     data1 = [
         dict(
@@ -835,12 +829,11 @@ def figures_selected_category(selected_category, filter_selectie):
     OHW = (revisie - inkoop).dropna()
 
     # Totaal aantal projecten:
-    nproj = len(df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)])
+    nproj = len(df_OHW)
     # Aantal meters OHW in deze selectie:
-    mOHW = -df_OHW[df_OHW['Categorie'] == cat[0:4]]['delta_1'].sum().round(0)
+    mOHW = -df_OHW['delta_1'].sum().astype(int)
     # meerwerk in deze categorie
-    meerw = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]
-    meerw = meerw['Extra werk'].sum().round(0)
+    meerw = df_OHW['Extra werk'].sum().astype(int)
 
     data1 = [
         dict(
@@ -888,7 +881,7 @@ def figures_selected_category(selected_category, filter_selectie):
         ),
     ]
 
-    layout_graph_selected_projects["title"] = cat
+    layout_graph_selected_projects["title"] = 'Categorie ' + cat
     layout_graph_selected_projects["dragmode"] = "select"
     layout_graph_selected_projects["showlegend"] = True
     layout_graph_selected_projects["autosize"] = True
@@ -930,8 +923,7 @@ def generate_status_table_ext(selected_category, filter_selectie):
     df_out = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]
 
     # Add categorie description and solution action
-    df_add = pd.DataFrame(columns=['Categorie', 'Beschrijving categorie',
-                                   'Oplosactie'])
+    df_add = pd.DataFrame(columns=['Categorie', 'Beschrijving categorie'])
     df_add['Categorie'] = ['Cat1', 'Cat2', 'Cat3', 'Cat4', 'Cat5', 'Cat6']
     df_add['Beschrijving categorie'] = config.beschrijving_cat
     df_add['Oplosactie'] = config.oplosactie
