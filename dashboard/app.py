@@ -472,7 +472,6 @@ def data_from_DB(filter_selectie):
         df_workflow = df_workflow[
             ~df_workflow['Project'].isin((
                 pcodes_geen_nulpunt['project'].unique()))]
-        print(pcodes_geen_nulpunt['project'].unique())
     if 'AF_1' in filter_selectie:
         df_workflow = df_workflow[
             ~(df_workflow['Hoe afgehecht'] == 'Administratief Afhechting')]
