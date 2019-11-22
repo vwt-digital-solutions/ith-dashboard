@@ -197,7 +197,7 @@ app.layout = html.Div(
                 html.Div(
                     [
                         html.H5(
-                            "Totaal overzicht OHW analyse",
+                            "Totaal overzicht OHW analyse:",
                             style={"margin-top": "0px"}
                         ),
                     ],
@@ -265,23 +265,23 @@ app.layout = html.Div(
                             """,
                             style={"margin-top": "0px"}
                         ),
-                        html.Div(
-                            [
-                                dbc.Button(
-                                    'Uitleg categorieën',
-                                    id='uitleg_button'
-                                ),
-                                html.Div(
-                                    [
-                                        dcc.Markdown(
-                                            config.uitleg_categorie
-                                        )
-                                    ],
-                                    id='uitleg_collapse',
-                                    hidden=True,
-                                )
-                            ],
-                        ),
+                        # html.Div(
+                        #     [
+                        #         dbc.Button(
+                        #             'Uitleg categorieën',
+                        #             id='uitleg_button'
+                        #         ),
+                        #         html.Div(
+                        #             [
+                        #                 dcc.Markdown(
+                        #                     config.uitleg_categorie
+                        #                 )
+                        #             ],
+                        #             id='uitleg_collapse',
+                        #             hidden=True,
+                        #         )
+                        #     ],
+                        # ),
                     ],
                     id='uitleg_2',
                     className="pretty_container 1 columns",
@@ -324,7 +324,26 @@ app.layout = html.Div(
         html.Div(
             [
                 html.Div(
-                    [dcc.Graph(id="pie_graph")],
+                    [
+                        dcc.Graph(id="pie_graph"),
+                        html.Div(
+                            [
+                                dbc.Button(
+                                    'Uitleg categorieën',
+                                    id='uitleg_button'
+                                ),
+                                html.Div(
+                                    [
+                                        dcc.Markdown(
+                                            config.uitleg_categorie
+                                        )
+                                    ],
+                                    id='uitleg_collapse',
+                                    hidden=True,
+                                )
+                            ],
+                        ),
+                    ],
                     className="pretty_container 4 columns",
                 ),
                 html.Div(
