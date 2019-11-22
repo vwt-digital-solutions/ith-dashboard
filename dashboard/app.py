@@ -20,8 +20,8 @@ from authentication.azure_auth import AzureOAuth
 from elements import table_styles
 from flask_caching import Cache
 
-import sqlalchemy as db
-from sqlalchemy import create_engine
+# import sqlalchemy as db
+# from sqlalchemy import create_engine
 
 PATH = pathlib.Path(__file__).parent
 DATA_PATH = PATH.joinpath("data").resolve()
@@ -394,51 +394,51 @@ def data_from_DB(filter_selectie):
     # 0: loads in data from database and 1: loads in data from csv
     inladen = 1
 
-    if inladen == 0:
-        engine = create_engine(
-            "mysql+pymysql://{user}:{pw}@localhost/{db}".format(
-                user="root",
-                pw="",
-                db="ith_database_test"))
-        connection = engine.connect()
-        metadata = db.MetaData()
+    # if inladen == 0:
+    #     engine = create_engine(
+    #         "mysql+pymysql://{user}:{pw}@localhost/{db}".format(
+    #             user="root",
+    #             pw="",
+    #             db="ith_database_test"))
+    #     connection = engine.connect()
+    #     metadata = db.MetaData()
 
-        workflow = db.Table('workflow', metadata, autoload=True,
-                            autoload_with=engine)
-        query = db.select([workflow])
-        resultproxy = connection.execute(query)
-        resultset = resultproxy.fetchall()
-        df_workflow = pd.DataFrame(resultset)
-        df_workflow.columns = resultset[0].keys()
-        df_workflow = df_workflow.set_index('ImportId')
+    #     workflow = db.Table('workflow', metadata, autoload=True,
+    #                         autoload_with=engine)
+    #     query = db.select([workflow])
+    #     resultproxy = connection.execute(query)
+    #     resultset = resultproxy.fetchall()
+    #     df_workflow = pd.DataFrame(resultset)
+    #     df_workflow.columns = resultset[0].keys()
+    #     df_workflow = df_workflow.set_index('ImportId')
 
-        inkoop = db.Table('inkoop', metadata, autoload=True,
-                          autoload_with=engine)
-        query = db.select([inkoop])
-        resultproxy = connection.execute(query)
-        resultset = resultproxy.fetchall()
-        df_inkoop = pd.DataFrame(resultset)
-        df_inkoop.columns = resultset[0].keys()
-        df_inkoop = df_inkoop.set_index('LEVERDATUM_ONTVANGST').drop(
-            ['ImportId'], axis=1)
+    #     inkoop = db.Table('inkoop', metadata, autoload=True,
+    #                       autoload_with=engine)
+    #     query = db.select([inkoop])
+    #     resultproxy = connection.execute(query)
+    #     resultset = resultproxy.fetchall()
+    #     df_inkoop = pd.DataFrame(resultset)
+    #     df_inkoop.columns = resultset[0].keys()
+    #     df_inkoop = df_inkoop.set_index('LEVERDATUM_ONTVANGST').drop(
+    #         ['ImportId'], axis=1)
 
-        revisie = db.Table('revisie', metadata, autoload=True,
-                           autoload_with=engine)
-        query = db.select([revisie]).order_by(db.asc(revisie.columns.Datum))
-        resultproxy = connection.execute(query)
-        resultset = resultproxy.fetchall()
-        df_revisie = pd.DataFrame(resultset)
-        df_revisie.columns = resultset[0].keys()
-        df_revisie = df_revisie.set_index('Datum').drop(['ImportId'], axis=1)
+    #     revisie = db.Table('revisie', metadata, autoload=True,
+    #                        autoload_with=engine)
+    #     query = db.select([revisie]).order_by(db.asc(revisie.columns.Datum))
+    #     resultproxy = connection.execute(query)
+    #     resultset = resultproxy.fetchall()
+    #     df_revisie = pd.DataFrame(resultset)
+    #     df_revisie.columns = resultset[0].keys()
+    #     df_revisie = df_revisie.set_index('Datum').drop(['ImportId'], axis=1)
 
-        nulpunt = db.Table('nulpunt', metadata, autoload=True,
-                           autoload_with=engine)
-        query = db.select([nulpunt])
-        resultproxy = connection.execute(query)
-        resultset = resultproxy.fetchall()
-        pcodes_geen_nulpunt = pd.DataFrame(resultset)
-        pcodes_geen_nulpunt.columns = resultset[0].keys()
-        pcodes_geen_nulpunt.rename(columns={'Project': 'project'})
+    #     nulpunt = db.Table('nulpunt', metadata, autoload=True,
+    #                        autoload_with=engine)
+    #     query = db.select([nulpunt])
+    #     resultproxy = connection.execute(query)
+    #     resultset = resultproxy.fetchall()
+    #     pcodes_geen_nulpunt = pd.DataFrame(resultset)
+    #     pcodes_geen_nulpunt.columns = resultset[0].keys()
+    #     pcodes_geen_nulpunt.rename(columns={'Project': 'project'})
 
     if inladen == 1:
         df_workflow = pd.read_csv(config.workflow_csv)
