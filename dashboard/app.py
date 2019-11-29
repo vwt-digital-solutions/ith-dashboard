@@ -442,30 +442,30 @@ def data_from_DB(filter_selectie):
     #     pcodes_geen_nulpunt.rename(columns={'Project': 'project'})
 
     if inladen == 1:
-        df_workflow = pd.read_csv(config.workflow_csv)
-
         df_inkoop = pd.read_csv(config.inkoop_csv)
+        df_inkoop['LEVERDATUM_ONTVANGST'] = pd.to_datetime(df_inkoop['LEVERDATUM_ONTVANGST'])
         df_inkoop = df_inkoop.set_index('LEVERDATUM_ONTVANGST')
+        df_inkoop = df_inkoop.astype({'Ontvangen': 'float', 'PROJECT': 'str'})
 
         df_revisie = pd.read_csv(config.revisie_csv)
-        df_revisie = df_revisie.set_index('Datum').drop(
-            ['Unnamed: 0'], axis=1).sort_values(by='Datum')
+        df_revisie['Datum'] = pd.to_datetime(df_revisie['Datum'])
+        df_revisie = df_revisie.set_index('Datum').sort_values(by='Datum')
+        df_revisie = df_revisie.astype({'delta': 'float'})
 
         pcodes_geen_nulpunt = pd.read_csv(config.pcodes_nulpunt_csv)
         pcodes_geen_nulpunt = pcodes_geen_nulpunt.astype(str)
 
-    df_workflow = df_workflow.astype({'delta_1': 'float',
-                                      'Extra werk': 'float',
-                                      'Ingekocht': 'float',
-                                      'Aangeboden': 'float',
-                                      'Gefactureerd totaal': 'float',
-                                      'Revisie totaal': 'float',
-                                      'Project': 'str'})
-    df_inkoop.index = pd.to_datetime(df_inkoop.index)
-    df_inkoop = df_inkoop.astype({'Ontvangen': 'float', 'PROJECT': 'str'})
-    df_revisie.index = pd.to_datetime(df_revisie.index)
-    df_revisie = df_revisie.astype({'delta': 'float'})
-
+        df_workflow = pd.read_csv(config.workflow_csv)
+        df_workflow = df_workflow.astype({
+            'delta_1': 'float',
+            'Extra werk': 'float',
+            'Ingekocht': 'float',
+            'Aangeboden': 'float',
+            'Goedgekeurd': 'float',
+            'Gefactureerd totaal': 'float',
+            'Gerealiseerd': 'float',
+            'Project': 'str'
+        })
     # apply filters
     if filter_selectie is None:
         filter_selectie = []
@@ -483,7 +483,7 @@ def data_from_DB(filter_selectie):
         df_workflow = df_workflow[
             ~(df_workflow['Hoe afgehecht'] == 'Bis Gereed')]
 
-    df_OHW = df_workflow[df_workflow['Categorie'] != 'Geen OHW']
+    df_OHW = df_workflow[df_workflow['delta_1'] < 0]
     mask = df_OHW['Project'].to_list()
 
     df_inkoop = df_inkoop[df_inkoop['PROJECT'].isin(mask)]
@@ -761,7 +761,7 @@ def make_pie_figure(filter_selectie):
             labels=beschrijving_cat,
             values=meters_cat['delta_1'],
             hoverinfo="percent",
-            textinfo="value",
+            textinfo="percent",
             hole=0.5,
             marker=dict(colors=['#003f5c', '#374c80', '#7a5195',
                                 '#bc5090',  '#ef5675']),
@@ -804,8 +804,10 @@ def figures_selected_category(selected_category, filter_selectie):
                   '4': 'Cat4', '5': 'Cat5', '6': 'Cat6'}
     if selected_category is None:
         cat = '1'
+        title = config.beschrijving_cat[0]
     else:
         cat = selected_category.get('points')[0].get('label')
+        title = cat
         cat = cat[3]
 
     layout_graph_selected_projects = copy.deepcopy(layout)
@@ -815,7 +817,7 @@ def figures_selected_category(selected_category, filter_selectie):
     mask = df_OHW['Project'].to_list()
     df_revisie = df_revisie[df_revisie['Projectnummer'].isin(mask)]
     df_inkoop = df_inkoop[df_inkoop['PROJECT'].isin(mask)]
-    
+
     # waardes voor grafieken
     ingeschat = df_OHW['Aangeboden'].sum()
     gefactureerd = df_OHW['Gefactureerd totaal'].sum()
@@ -878,7 +880,7 @@ def figures_selected_category(selected_category, filter_selectie):
         ),
     ]
 
-    layout_graph_selected_projects["title"] = 'Categorie ' + cat
+    layout_graph_selected_projects["title"] = title
     layout_graph_selected_projects["dragmode"] = "select"
     layout_graph_selected_projects["showlegend"] = True
     layout_graph_selected_projects["autosize"] = True
@@ -896,6 +898,7 @@ def figures_selected_category(selected_category, filter_selectie):
     return [figure1, figure2, [str(nproj), str(mOHW), str(meerw)]]
 
 
+# Tabel
 @app.callback(
         Output('status_table_ext', 'children'),
         [
