@@ -80,7 +80,7 @@ layout = dict(
     title="Satellite Overview",
 )
 
-# Create app layout
+# APP LAYOUT
 app.layout = html.Div(
     [
         dcc.Store(id="aggregate_data",
@@ -386,7 +386,8 @@ app.layout = html.Div(
 )
 
 
-# uitleg categorien button
+# CALBACK FUNCTIONS
+# Informatie button
 @app.callback(
     Output("uitleg_collapse", "hidden"),
     [Input("uitleg_button", "n_clicks")],
@@ -398,7 +399,7 @@ def toggle_collapse(n, is_open):
     return is_open
 
 
-# Update info containers
+# Info containers
 @app.callback(
     [
         Output("info_globaal_0", "children"),
@@ -424,7 +425,7 @@ def update_text(data1, data2):
     ]
 
 
-# Callback voor globale grafieken
+# Globale grafieken
 @app.callback(
     [Output("Projecten_globaal_graph", "figure"),
      Output("OHW_globaal_graph", "figure"),
@@ -436,7 +437,7 @@ def make_global_figures(filter_selectie):
     return [figure1, figure2, stats]
 
 
-# Callback voor taartdiagram
+# Taartdiagram
 @app.callback(
     Output("pie_graph", "figure"),
     [
@@ -486,6 +487,7 @@ def make_pie_figure(filter_selectie):
     return figure
 
 
+# Grafieken categorie
 @app.callback(
     [Output("projecten_bakje_graph", "figure"),
      Output("OHW_bakje_graph", "figure"),
@@ -498,6 +500,7 @@ def figures_selected_category(selected_category, filter_selectie):
     return [figure1, figure2, stats]
 
 
+# Tabel
 @app.callback(
         Output('status_table_ext', 'children'),
         [
@@ -531,7 +534,7 @@ def generate_status_table_ext(selected_category, filter_selectie):
     ]
 
 
-# download functies
+# DOWNLOAD FUNCTIES
 @app.callback(
     [
         Output('download-link', 'href'),
@@ -631,7 +634,7 @@ def download_excel2():
                      as_attachment=True)
 
 
-# helper functions
+# HELPER FUNCTIES
 @cache.memoize()
 def data_from_DB(filter_selectie):
     # 0: loads in data from database and 1: loads in data from csv
