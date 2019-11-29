@@ -84,13 +84,9 @@ layout = dict(
 app.layout = html.Div(
     [
         dcc.Store(id="aggregate_data",
-                  data={'0': '1', '1': '1', '2': '1', '3': '1'}),
+                  data={'0': '1', '1': '1', '2': '1'}),
         dcc.Store(id="aggregate_data2",
-                  data=['1', '1', '1', '1']),
-        dcc.Store(id="data_workflow"),
-        dcc.Store(id="data_inkoop"),
-        dcc.Store(id="data_revisie"),
-        dcc.Store(id="data_nulpunt"),
+                  data={'0': '1', '1': '1', '2': '1'}),
         html.Div(
             [
                 html.Div(
@@ -120,7 +116,7 @@ app.layout = html.Div(
                                     style={"margin-top": "0px"}
                                 ),
                                 html.P(),
-                                html.P("(Laatste nieuwe data: 14-11-2019)")
+                                html.P("(Laatste nieuwe data: 26-11-2019)")
                             ],
                             style={"margin-left": "-120px"},
                         )
@@ -390,6 +386,252 @@ app.layout = html.Div(
 )
 
 
+# uitleg categorien button
+@app.callback(
+    Output("uitleg_collapse", "hidden"),
+    [Input("uitleg_button", "n_clicks")],
+    [State("uitleg_collapse", "hidden")],
+)
+def toggle_collapse(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
+
+# Update info containers
+@app.callback(
+    [
+        Output("info_globaal_0", "children"),
+        Output("info_globaal_1", "children"),
+        Output("info_globaal_2", "children"),
+        Output("info_bakje_0", "children"),
+        Output("info_bakje_1", "children"),
+        Output("info_bakje_2", "children"),
+    ],
+    [
+        Input("aggregate_data", "data"),
+        Input("aggregate_data2", "data")
+    ],
+)
+def update_text(data1, data2):
+    return [
+        data1.get('0') + " projecten",
+        data1.get('1') + " projecten",
+        data1.get('2') + " meter",
+        data2.get('0') + " projecten",
+        data2.get('1') + " meter",
+        data2.get('2') + " meter"
+    ]
+
+
+# Callback voor globale grafieken
+@app.callback(
+    [Output("Projecten_globaal_graph", "figure"),
+     Output("OHW_globaal_graph", "figure"),
+     Output("aggregate_data", "data")],
+    [Input("checklist_filters", 'value')]
+)
+def make_global_figures(filter_selectie):
+    figure1, figure2, stats = generate_graph(filter_selectie, selected_category='global graph')
+    return [figure1, figure2, stats]
+
+
+# Callback voor taartdiagram
+@app.callback(
+    Output("pie_graph", "figure"),
+    [
+        Input("checklist_filters", 'value'),
+    ],
+)
+def make_pie_figure(filter_selectie):
+    layout_pie = copy.deepcopy(layout)
+    df_workflow, df_inkoop, df_revisie, df_OHW = data_from_DB(filter_selectie)
+
+    donut = {}
+    for cat in config.beschrijving_cat:
+        df_ = pick_category(cat, df_OHW)
+        donut[cat] = -(df_['delta_1'].sum().astype('int64'))
+
+    data_graph = [
+        dict(
+            type="pie",
+            labels=list(donut.keys()),
+            values=list(donut.values()),
+            hoverinfo="percent",
+            textinfo="value",
+            hole=0.5,
+            marker=dict(colors=['#003f5c', '#374c80', '#7a5195',
+                                '#bc5090',  '#ef5675']),
+            domain={"x": [0, 1], "y": [0.30, 1]},
+            sort=False
+        )
+    ]
+
+    layout_pie["title"] = "Categorieen OHW (aantal meters):"
+    layout_pie["clickmode"] = "event+select"
+    layout_pie["font"] = dict(color="#777777")
+    layout_pie["legend"] = dict(
+        font=dict(color="#777777", size="14"),
+        orientation="v",
+        bgcolor="rgba(0,0,0,0)",
+        traceorder='normal',
+        itemclick=True,
+        xanchor='bottom'
+    )
+    layout_pie["showlegend"] = True
+    layout_pie["height"] = 500
+
+    figure = dict(data=data_graph, layout=layout_pie)
+
+    return figure
+
+
+@app.callback(
+    [Output("projecten_bakje_graph", "figure"),
+     Output("OHW_bakje_graph", "figure"),
+     Output("aggregate_data2", "data")],
+    [Input("pie_graph", 'clickData'),
+     Input("checklist_filters", 'value')],
+)
+def figures_selected_category(selected_category, filter_selectie):
+    figure1, figure2, stats = generate_graph(filter_selectie, selected_category)
+    return [figure1, figure2, stats]
+
+
+@app.callback(
+        Output('status_table_ext', 'children'),
+        [
+            Input("pie_graph", 'clickData'),
+            Input("checklist_filters", 'value'),
+        ],
+)
+def generate_status_table_ext(selected_category, filter_selectie):
+
+    if selected_category is None:
+        return [html.P()]
+    selected_category = selected_category.get('points')[0].get('label')
+    df_workflow, df_inkoop, df_revisie, df_OHW = data_from_DB(filter_selectie)
+    df_OHW = pick_category(selected_category, df_OHW)
+
+    oplosactie = config.oplosactie[selected_category]
+    df_OHW['Beschrijving categorie'] = selected_category
+    df_OHW['Oplosactie'] = oplosactie
+
+    df_OHW = df_OHW.sort_values(by='delta_1', ascending=True).rename(columns={'delta_1': 'OHW'})
+    df_OHW = df_OHW[config.columns]
+    return [
+        dash_table.DataTable(
+            columns=[{"name": i, "id": i} for i in df_OHW.columns],
+            data=df_OHW.to_dict("rows"),
+            style_table={'overflowX': 'auto'},
+            style_header=table_styles['header'],
+            style_cell=table_styles['cell']['action'],
+            style_filter=table_styles['filter'],
+        )
+    ]
+
+
+# download functies
+@app.callback(
+    [
+        Output('download-link', 'href'),
+        Output('download-link1', 'href'),
+        Output('download-link2', 'href'),
+    ],
+    [
+        Input('pie_graph', 'clickData'),
+        Input("checklist_filters", 'value'),
+    ],
+)
+def update_link(clickData, selected_filters):
+
+    if clickData is None:
+        cat = config.beschrijving_cat[0]
+    else:
+        cat = clickData.get('points')[0].get('label')
+
+    if selected_filters is None:
+        selected_filters = ['empty']
+
+    return ['''/download_excel?categorie={}&filters={}'''.format(
+            cat, selected_filters),
+            '/download_excel1?filters={}'.format(selected_filters),
+            '/download_excel2?filters={}'.format(selected_filters)]
+
+# download categorie
+@app.server.route('/download_excel')
+def download_excel():
+    selected_category = flask.request.args.get('categorie')
+    filter_selectie = flask.request.args.get('filters')
+    _, _, _, df_OHW = data_from_DB(filter_selectie)
+    oplosactie = config.oplosactie[selected_category]
+    df_OHW['Beschrijving categorie'] = selected_category
+    df_OHW['Oplosactie'] = oplosactie
+    df_OHW = df_OHW.sort_values(by='delta_1', ascending=True).rename(columns={'delta_1': 'OHW'})
+    df_OHW = df_OHW[config.columns]
+
+    # Convert df to excel
+    strIO = io.BytesIO()
+    excel_writer = pd.ExcelWriter(strIO, engine="xlsxwriter")
+    df_OHW.to_excel(excel_writer, sheet_name="sheet1", index=False)
+    excel_writer.save()
+    strIO.getvalue()
+    strIO.seek(0)
+
+    # Name download file
+    date = dt.datetime.now().strftime('%d-%m-%Y')
+    filename = "Info_project_{}_filters_{}_{}.xlsx".format(
+        selected_category[:4], filter_selectie, date)
+    return send_file(strIO,
+                     attachment_filename=filename,
+                     as_attachment=True)
+
+# download volledig OHW frame
+@app.server.route('/download_excel1')
+def download_excel1():
+    filter_selectie = flask.request.args.get('filters')
+
+    _, _, _, df_OHW = data_from_DB(filter_selectie)
+    df_OHW = df_OHW.sort_values(by='delta_1', ascending=True).rename(columns={'delta_1': 'OHW'})
+
+    # Convert DF
+    strIO = io.BytesIO()
+    excel_writer = pd.ExcelWriter(strIO, engine="xlsxwriter")
+    df_OHW.to_excel(excel_writer, sheet_name="sheet1", index=False)
+    excel_writer.save()
+    strIO.getvalue()
+    strIO.seek(0)
+
+    # Name download file
+    Filename = "Info_project_all_filters_{}_{}.xlsx".format(
+        filter_selectie, dt.datetime.now().strftime('%d-%m-%Y'))
+    return send_file(strIO,
+                     attachment_filename=Filename,
+                     as_attachment=True)
+
+# download meerwerk excel
+@app.server.route('/download_excel2')
+def download_excel2():
+    df = pd.read_csv(config.extra_werk_inkooporder_csv)
+    df.rename(columns={'Ontvangen': 'Extra werk'}, inplace=True)
+
+    # Convert DF
+    strIO = io.BytesIO()
+    excel_writer = pd.ExcelWriter(strIO, engine="xlsxwriter")
+    df.to_excel(excel_writer, sheet_name="sheet1", index=False)
+    excel_writer.save()
+    strIO.getvalue()
+    strIO.seek(0)
+
+    # Name download file
+    Filename = 'Info_inkooporder_meerwerk_' \
+        + dt.datetime.now().strftime('%d-%m-%Y') + '.xlsx'
+    return send_file(strIO,
+                     attachment_filename=Filename,
+                     as_attachment=True)
+
+
+# helper functions
 @cache.memoize()
 def data_from_DB(filter_selectie):
     # 0: loads in data from database and 1: loads in data from csv
@@ -492,165 +734,57 @@ def data_from_DB(filter_selectie):
     return df_workflow, df_inkoop, df_revisie, df_OHW
 
 
-@app.callback(
-    Output("uitleg_collapse", "hidden"),
-    [Input("uitleg_button", "n_clicks")],
-    [State("uitleg_collapse", "hidden")],
-)
-def toggle_collapse(n, is_open):
-    if n:
-        return not is_open
-    return is_open
+@cache.memoize()
+def pick_category(categorie, df_OHW):
+
+    mask_cat1 = (df_OHW['Goedgekeurd'] < df_OHW['Aangeboden'])
+    mask_cat2 = (
+        (df_OHW['Ingekocht'] > df_OHW['Goedgekeurd']) |
+        (df_OHW['Gerealiseerd'] > df_OHW['Goedgekeurd'])
+    )
+    mask_cat3 = (
+        (df_OHW['Ingekocht'] > df_OHW['Gerealiseerd']) |
+        (df_OHW['Gefactureerd totaal'] > df_OHW['Gerealiseerd'])
+    )
+    mask_cat4 = (df_OHW['Gerealiseerd'] > df_OHW['Gefactureerd totaal'])
+    mask_cat5 = ((~mask_cat1) & (~mask_cat2) & (~mask_cat3) & (~mask_cat4))
+
+    if categorie == config.beschrijving_cat[0]:
+        return df_OHW[mask_cat1]
+    elif categorie == config.beschrijving_cat[1]:
+        return df_OHW[mask_cat2]
+    elif categorie == config.beschrijving_cat[2]:
+        return df_OHW[mask_cat3]
+    elif categorie == config.beschrijving_cat[3]:
+        return df_OHW[mask_cat4]
+    elif categorie == config.beschrijving_cat[4]:
+        return df_OHW[mask_cat5]
 
 
-@app.callback(
-    [
-        Output('download-link', 'href'),
-        Output('download-link1', 'href'),
-        Output('download-link2', 'href'),
-    ],
-    [
-        Input('pie_graph', 'clickData'),
-        Input("checklist_filters", 'value'),
-    ],
-)
-def update_link(clickData, selected_filters):
-
-    if clickData is None:
-        cat = config.beschrijving_cat[0][0:4]
-    else:
-        cat = clickData.get('points')[0].get('label')[0:4]
-
-    if selected_filters is None:
-        selected_filters = ['empty']
-
-    return ['''/download_excel?categorie={}&filters={}'''.format(
-            cat, selected_filters),
-            '/download_excel1?filters={}'.format(selected_filters),
-            '/download_excel2?filters={}'.format(selected_filters)]
-
-
-@app.server.route('/download_excel')
-def download_excel():
-    cat = flask.request.args.get('categorie')
-    filter_selectie = flask.request.args.get('filters')
-
-    df_workflow, _, _, _ = data_from_DB(filter_selectie)
-    df = df_workflow[df_workflow['Categorie'] == cat]
-
-    # add categorie description and solution action
-    df_add = pd.DataFrame(columns=['Categorie', 'Beschrijving categorie'])
-    df_add['Categorie'] = ['Cat1', 'Cat2', 'Cat3', 'Cat4', 'Cat5', 'Cat6']
-    df_add['Beschrijving categorie'] = config.beschrijving_cat
-    df_add['Oplosactie'] = config.oplosactie
-    df = df.merge(df_add, on='Categorie', how='left').sort_values(
-        by='delta_1', ascending=True).rename(columns={'delta_1': 'OHW'})
-    df = df[config.columns]
-
-    # Convert df to excel
-    strIO = io.BytesIO()
-    excel_writer = pd.ExcelWriter(strIO, engine="xlsxwriter")
-    df.to_excel(excel_writer, sheet_name="sheet1", index=False)
-    excel_writer.save()
-    strIO.getvalue()
-    strIO.seek(0)
-
-    # Name download file
-    date = dt.datetime.now().strftime('%d-%m-%Y')
-    filename = "Info_project_{}_filters_{}_{}.xlsx".format(
-        cat, filter_selectie, date)
-    return send_file(strIO,
-                     attachment_filename=filename,
-                     as_attachment=True)
-
-
-@app.server.route('/download_excel1')
-def download_excel1():
-    filter_selectie = flask.request.args.get('filters')
-
-    _, _, _, df_OHW = data_from_DB(filter_selectie)
-    df = df_OHW
-
-    # add categorie description and solution action
-    df_add = pd.DataFrame(columns=['Categorie', 'Beschrijving categorie'])
-    df_add['Categorie'] = ['Cat1', 'Cat2', 'Cat3', 'Cat4', 'Cat5', 'Cat6']
-    df_add['Beschrijving categorie'] = config.beschrijving_cat
-    df_add['Oplosactie'] = config.oplosactie
-    df = df.merge(df_add, on='Categorie', how='left').sort_values(
-        by='delta_1', ascending=True).rename(columns={'delta_1': 'OHW'})
-    df = df[config.columns]
-
-    # Convert DF
-    strIO = io.BytesIO()
-    excel_writer = pd.ExcelWriter(strIO, engine="xlsxwriter")
-    df.to_excel(excel_writer, sheet_name="sheet1", index=False)
-    excel_writer.save()
-    strIO.getvalue()
-    strIO.seek(0)
-
-    # Name download file
-    Filename = "Info_project_all_filters_{}_{}.xlsx".format(
-        filter_selectie, dt.datetime.now().strftime('%d-%m-%Y'))
-    return send_file(strIO,
-                     attachment_filename=Filename,
-                     as_attachment=True)
-
-
-@app.server.route('/download_excel2')
-def download_excel2():
-    df = pd.read_csv(config.extra_werk_csv)
-    df.rename(columns={'Ontvangen': 'Extra werk'}, inplace=True)
-
-    # Convert DF
-    strIO = io.BytesIO()
-    excel_writer = pd.ExcelWriter(strIO, engine="xlsxwriter")
-    df.to_excel(excel_writer, sheet_name="sheet1", index=False)
-    excel_writer.save()
-    strIO.getvalue()
-    strIO.seek(0)
-
-    # Name download file
-    Filename = 'Info_inkooporder_meerwerk_' \
-        + dt.datetime.now().strftime('%d-%m-%Y') + '.xlsx'
-    return send_file(strIO,
-                     attachment_filename=Filename,
-                     as_attachment=True)
-
-
-# Update info containers
-@app.callback(
-    [
-        Output("info_globaal_0", "children"),
-        Output("info_globaal_1", "children"),
-        Output("info_globaal_2", "children"),
-        Output("info_bakje_0", "children"),
-        Output("info_bakje_1", "children"),
-        Output("info_bakje_2", "children"),
-    ],
-    [
-        Input("aggregate_data", "data"),
-        Input("aggregate_data2", "data")
-    ],
-)
-def update_text(data1, data2):
-    return data1['0'] + " projecten", data1['1'] + " projecten", \
-           data1['2'] + " meter", \
-           data2[0] + " projecten", data2[1] + " meter", \
-           data2[2] + " meter"
-
-
-# Callback voor globale grafieken
-@app.callback(
-    [Output("Projecten_globaal_graph", "figure"),
-     Output("OHW_globaal_graph", "figure"),
-     Output("aggregate_data", "data")],
-    [Input("checklist_filters", 'value')]
-)
-def make_global_figures(filter_selectie):
+@cache.memoize()
+def generate_graph(filter_selectie, selected_category=None):
 
     layout_global_projects = copy.deepcopy(layout)
     layout_global_projects_OHW = copy.deepcopy(layout)
     df_workflow, df_inkoop, df_revisie, df_OHW = data_from_DB(filter_selectie)
+
+    # pick global or category
+    if selected_category == 'global graph':
+        title = 'Projecten met OHW'
+    elif selected_category is None:
+        cat = config.beschrijving_cat[0]
+        title = config.beschrijving_cat[0]
+        df_OHW = pick_category(cat, df_OHW)
+        projects = df_OHW['Project'].to_list()
+        df_revisie = df_revisie[df_revisie['Projectnummer'].isin(projects)]
+        df_inkoop = df_inkoop[df_inkoop['PROJECT'].isin(projects)]
+    else:
+        cat = selected_category.get('points')[0].get('label')
+        title = cat
+        df_OHW = pick_category(cat, df_OHW)
+        projects = df_OHW['Project'].to_list()
+        df_revisie = df_revisie[df_revisie['Projectnummer'].isin(projects)]
+        df_inkoop = df_inkoop[df_inkoop['PROJECT'].isin(projects)]
 
     # waardes voor grafieken
     ingeschat = df_OHW['Aangeboden'].sum()
@@ -661,12 +795,21 @@ def make_global_figures(filter_selectie):
     revisie = df_revisie['delta'].resample('D').sum().cumsum()
     OHW = (revisie - inkoop).dropna()
 
-    # Totaal aantal projecten:
-    nproj = df_workflow['Project'].nunique()
-    # Nr projecten met negatieve OHW:
-    nOHW = len(df_OHW['Project'].unique())
-    # totaal OHW meters:
-    totOHW = -df_OHW['delta_1'].sum().astype(int)
+    # waarders voor statestiek:
+    if selected_category == 'global graph':
+        # totaal aantal projecten
+        stats_1 = len(df_workflow['Project'].unique())
+        # Nr projecten met negatieve OHW:
+        stats_2 = len(df_OHW['Project'].unique())
+        # totaal OHW meters:
+        stats_3 = -df_OHW['delta_1'].sum().astype(int)
+    else:
+        # totaal aantal projecten met in categorie:
+        stats_1 = df_OHW['Project'].nunique()
+        # totaal OHW meters in categorie:
+        stats_2 = -df_OHW['delta_1'].sum().astype(int)
+        # aantal meters meerwerk in categorie:
+        stats_3 = df_OHW['Extra werk'].sum().astype(int)
 
     data1 = [
         dict(
@@ -715,7 +858,7 @@ def make_global_figures(filter_selectie):
         ),
     ]
 
-    layout_global_projects["title"] = "Projecten met OHW"
+    layout_global_projects["title"] = title
     layout_global_projects["dragmode"] = "select"
     layout_global_projects["showlegend"] = True
     layout_global_projects["autosize"] = True
@@ -730,220 +873,9 @@ def make_global_figures(filter_selectie):
 
     figure1 = dict(data=data1, layout=layout_global_projects)
     figure2 = dict(data=data2, layout=layout_global_projects_OHW)
-    stats = {'0': str(nproj), '1': str(nOHW), '2': str(totOHW)}
+    stats = {'0': str(stats_1), '1': str(stats_2), '2': str(stats_3)}
 
-    return [figure1, figure2, stats]
-
-
-# Callback voor taartdiagram
-@app.callback(
-    Output("pie_graph", "figure"),
-    [
-        Input("checklist_filters", 'value'),
-    ],
-)
-def make_pie_figure(filter_selectie):
-
-    df_workflow, df_inkoop, df_revisie, df_OHW = data_from_DB(filter_selectie)
-
-    layout_pie = copy.deepcopy(layout)
-    meters_cat = -df_OHW.groupby('Categorie').agg({'delta_1': 'sum'})
-
-    # check for categories that don't exist
-    beschrijving_cat = []
-    for cat in meters_cat.index:
-        matching = [s for s in config.beschrijving_cat if cat in s]
-        beschrijving_cat = beschrijving_cat + [matching]
-
-    data = [
-        dict(
-            type="pie",
-            labels=beschrijving_cat,
-            values=meters_cat['delta_1'],
-            hoverinfo="percent",
-            textinfo="percent",
-            hole=0.5,
-            marker=dict(colors=['#003f5c', '#374c80', '#7a5195',
-                                '#bc5090',  '#ef5675']),
-            domain={"x": [0, 1], "y": [0.30, 1]},
-            sort=False
-        ),
-    ]
-
-    layout_pie["title"] = "Categorieen OHW (aantal meters):"
-    layout_pie["clickmode"] = "event+select"
-    layout_pie["font"] = dict(color="#777777")
-    layout_pie["legend"] = dict(
-        font=dict(color="#777777", size="14"),
-        orientation="v",
-        bgcolor="rgba(0,0,0,0)",
-        traceorder='normal',
-        itemclick=True,
-        xanchor='bottom'
-    )
-    layout_pie["showlegend"] = True
-    layout_pie["height"] = 500
-    figure = dict(data=data, layout=layout_pie)
-
-    return figure
-
-
-# grafieken voor het geselecteerde bakje in het taartdiagram
-@app.callback(
-    [Output("projecten_bakje_graph", "figure"),
-     Output("OHW_bakje_graph", "figure"),
-     Output("aggregate_data2", "data")],
-    [Input("pie_graph", 'clickData'),
-     Input("checklist_filters", 'value')],
-)
-def figures_selected_category(selected_category, filter_selectie):
-
-    df_workflow, df_inkoop, df_revisie, df_OHW = data_from_DB(
-        filter_selectie)
-    cat_lookup = {'1': 'Cat1', '2': 'Cat2', '3': 'Cat3',
-                  '4': 'Cat4', '5': 'Cat5', '6': 'Cat6'}
-    if selected_category is None:
-        cat = '1'
-        title = config.beschrijving_cat[0]
-    else:
-        cat = selected_category.get('points')[0].get('label')
-        title = cat
-        cat = cat[3]
-
-    layout_graph_selected_projects = copy.deepcopy(layout)
-    layout_graph_selected_projects_OHW = copy.deepcopy(layout)
-
-    df_OHW = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]
-    mask = df_OHW['Project'].to_list()
-    df_revisie = df_revisie[df_revisie['Projectnummer'].isin(mask)]
-    df_inkoop = df_inkoop[df_inkoop['PROJECT'].isin(mask)]
-
-    # waardes voor grafieken
-    ingeschat = df_OHW['Aangeboden'].sum()
-    gefactureerd = df_OHW['Gefactureerd totaal'].sum()
-    inkoop = df_inkoop.groupby('LEVERDATUM_ONTVANGST').agg({'Ontvangen':
-                                                            'sum'})
-    inkoop = inkoop['Ontvangen'].cumsum().asfreq('D', 'ffill')
-    revisie = df_revisie['delta'].resample('D').sum().cumsum()
-    OHW = (revisie - inkoop).dropna()
-
-    # Totaal aantal projecten:
-    nproj = len(df_OHW)
-    # Aantal meters OHW in deze selectie:
-    mOHW = -df_OHW['delta_1'].sum().astype(int)
-    # meerwerk in deze categorie
-    meerw = df_OHW['Extra werk'].sum().astype(int)
-
-    data1 = [
-        dict(
-            type="line",
-            x=inkoop.index,
-            y=inkoop,
-            name="Ingekocht",
-            opacity=0.5,
-            hoverinfo="skip",
-        ),
-        dict(
-            type="line",
-            x=revisie.index,
-            y=revisie,
-            name="deelrevisies Totaal",
-            opacity=0.5,
-            hoverinfo="skip",
-        ),
-        dict(
-            type="line",
-            mode='markers',
-            marker=dict(size=12, symbol='triangle-left'),
-            x=[pd.datetime.now()],
-            y=[gefactureerd],
-            name="Gefactureerd Totaal",
-        ),
-        dict(
-            type="line",
-            mode='markers',
-            marker=dict(size=12, symbol='triangle-left'),
-            x=[pd.datetime.now()],
-            y=[ingeschat],
-            name="Ingeschat",
-        ),
-    ]
-
-    data2 = [
-        dict(
-            type="line",
-            x=OHW.index,
-            y=-OHW,
-            name="OHW",
-            opacity=0.5,
-            hoverinfo="skip",
-        ),
-    ]
-
-    layout_graph_selected_projects["title"] = title
-    layout_graph_selected_projects["dragmode"] = "select"
-    layout_graph_selected_projects["showlegend"] = True
-    layout_graph_selected_projects["autosize"] = True
-    layout_graph_selected_projects["yaxis"] = dict(title='[m]')
-
-    layout_graph_selected_projects_OHW["title"] = \
-        "OHW (op basis van deelrevisies)"
-    layout_graph_selected_projects_OHW["dragmode"] = "select"
-    layout_graph_selected_projects_OHW["showlegend"] = True
-    layout_graph_selected_projects_OHW["autosize"] = True
-    layout_graph_selected_projects_OHW["yaxis"] = dict(title='[m]')
-
-    figure1 = dict(data=data1, layout=layout_graph_selected_projects)
-    figure2 = dict(data=data2, layout=layout_graph_selected_projects_OHW)
-    return [figure1, figure2, [str(nproj), str(mOHW), str(meerw)]]
-
-
-# Tabel
-@app.callback(
-        Output('status_table_ext', 'children'),
-        [
-            Input("pie_graph", 'clickData'),
-            Input("checklist_filters", 'value'),
-        ],
-)
-def generate_status_table_ext(selected_category, filter_selectie):
-
-    df_workflow, df_inkoop, df_revisie, df_OHW = data_from_DB(
-        selected_category)
-
-    cat_lookup = {'1': 'Cat1', '2': 'Cat2', '3': 'Cat3',
-                  '4': 'Cat4', '5': 'Cat5', '6': 'Cat6'}
-    if selected_category is None:
-        cat = 'Cat1'
-    else:
-        cat = selected_category.get('points')[0].get('label')
-        cat = cat[3]
-
-    # Alle projecten met OHW
-    df_out = df_OHW[df_OHW['Categorie'] == cat_lookup.get(cat)]
-
-    # Add categorie description and solution action
-    df_add = pd.DataFrame(columns=['Categorie', 'Beschrijving categorie'])
-    df_add['Categorie'] = ['Cat1', 'Cat2', 'Cat3', 'Cat4', 'Cat5', 'Cat6']
-    df_add['Beschrijving categorie'] = config.beschrijving_cat
-    df_add['Oplosactie'] = config.oplosactie
-    df_out = df_out.merge(df_add, on='Categorie', how='left').sort_values(
-        by='delta_1', ascending=True).rename(columns={'delta_1': 'OHW'})
-    df_out = df_out[config.columns]
-
-    if selected_category is None:
-        return [html.P()]
-
-    return [
-        dash_table.DataTable(
-            columns=[{"name": i, "id": i} for i in df_out.columns],
-            data=df_out.to_dict("rows"),
-            style_table={'overflowX': 'auto'},
-            style_header=table_styles['header'],
-            style_cell=table_styles['cell']['action'],
-            style_filter=table_styles['filter'],
-        )
-    ]
+    return figure1, figure2, stats
 
 
 if __name__ == "__main__":
