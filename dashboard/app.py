@@ -12,7 +12,6 @@ import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_table
-
 from flask import send_file
 from google.cloud import kms_v1
 from dash.dependencies import Input, Output, State
@@ -160,7 +159,7 @@ app.layout = html.Div(
                                 ),
                             ],
                             id="filter_container",
-                            className="pretty_container 3 columns",
+                            className="pretty_container_title 3 columns",
                         ),
                         html.Div(
                             [
@@ -214,7 +213,7 @@ app.layout = html.Div(
                                 ),
                             ],
                             id="download_container",
-                            className="pretty_container 3 columns",
+                            className="pretty_container_title 3 columns",
                         ),
                     ],
                     id="info-container",
@@ -232,7 +231,7 @@ app.layout = html.Div(
                         ),
                     ],
                     id='uitleg_1',
-                    className="pretty_container 1 columns",
+                    className="pretty_container_title 1 columns",
                 ),
             ],
             className="row flex-display",
@@ -297,7 +296,7 @@ app.layout = html.Div(
                         ),
                     ],
                     id='uitleg_2',
-                    className="pretty_container 1 columns",
+                    className="pretty_container_title 1 columns",
                 ),
             ],
             className="row flex-display",
@@ -487,7 +486,7 @@ def make_pie_figure(filter_selectie):
     return figure
 
 
-# Grafieken categorie
+# Categorie grafiek
 @app.callback(
     [Output("projecten_bakje_graph", "figure"),
      Output("OHW_bakje_graph", "figure"),
@@ -530,7 +529,11 @@ def generate_status_table_ext(selected_category, filter_selectie):
             style_header=table_styles['header'],
             style_cell=table_styles['cell']['action'],
             style_filter=table_styles['filter'],
-        )
+            css=[{
+                'selector': 'table',
+                'rule': 'width: 100%;'
+            }],
+        ),
     ]
 
 
