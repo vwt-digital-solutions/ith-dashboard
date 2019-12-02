@@ -450,7 +450,9 @@ def make_pie_figure(filter_selectie):
     donut = {}
     for cat in config.beschrijving_cat:
         df_ = pick_category(cat, df_OHW)
-        donut[cat] = -(df_['delta_1'].sum().astype('int64'))
+        sum_ = -(df_['delta_1'].sum().astype('int64'))
+        if sum_ > 0:
+            donut[cat] = sum_
 
     data_graph = [
         dict(
