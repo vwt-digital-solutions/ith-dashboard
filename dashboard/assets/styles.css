@@ -67,6 +67,19 @@ body {
   display: flex;
 }
 
+.fixedElement {
+  background-color: #4e4d4d;
+  position:fixed;
+  top:0;
+  width: 88%;
+  z-index:100;
+  border-radius: 5px;
+  margin: 10px;
+  padding: 15px;
+  box-shadow: 2px 2px 2px lightgrey;
+  display: flex;
+}
+
 #individual_graph,
 #aggregate_graph {
   width: calc(100% - 30px);
@@ -150,3 +163,5 @@ body {
   pointer-events: all;
   transform: translate(30px, 349px);
 }
+
+
