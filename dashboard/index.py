@@ -23,7 +23,8 @@ config_pages = OrderedDict(
 )
 
 
-def get_navbar(pathname):
+# NAV VERSION 1
+def get_navbar():
     navbar = html.Div(
         [
             html.Button(
@@ -54,6 +55,27 @@ def get_navbar(pathname):
     return navbar
 
 
+# # NAV VERSION 2
+# def get_navbar():
+#     children = []
+#     for page in config_pages:
+#         temp = dbc.NavItem(
+#             dbc.NavLink(
+#                 config_pages[page]['name'], 
+#                 href=config_pages[page]['link'][0]
+#             )
+#         )
+#         children = children + [temp]
+    
+#     navbar = dbc.NavbarSimple(
+#         children=children,
+#         brand='VWT Infratechniek',
+#         className='fixedElement'
+#     )
+#     return navbar
+
+
+# NAV VERSION 3
 # def get_navbar(huidige_pagina):
 #     for page in config_pages:
 #         if huidige_pagina in config_pages[page]['link']:
@@ -85,6 +107,7 @@ def get_navbar(pathname):
 
 app.layout = html.Div([
     dcc.Location(id='url', refresh=True),
+    get_navbar(),
     html.Div(id='page-content')
 ])
 
@@ -99,12 +122,10 @@ def display_page(pathname):
     if pathname == '/':
         pathname = '/geulen_graven'
 
-    navbar = get_navbar(pathname)
-
     if pathname == '/geulen_graven':
-        return html.Div([navbar]), html.Div([geulen_graven.get_body()])
+        return geulen_graven.get_body()
     elif pathname == '/HAS':
-        return html.Div([navbar]), has.get_body()
+        return has.get_body()
     else:
         return html.P('''deze pagina bestaat niet, druk op vorige
                          of een van de paginas in het menu hierboven''')
