@@ -81,7 +81,6 @@ def get_body():
                         [
                             html.Div(
                                 [
-                                    # html.H6(id="filters"),
                                     html.P("Filters:"),
                                     dcc.Dropdown(
                                         options=[

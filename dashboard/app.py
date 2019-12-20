@@ -17,7 +17,7 @@ server = flask.Flask(__name__)
 app = dash.Dash(
     __name__,
     meta_tags=[{"name": "viewport", "content": "width=device-width"}],
-    server=server
+    server=server,
 )
 cache = Cache(app.server, config={
     "CACHE_TYPE": "simple",
