@@ -687,7 +687,10 @@ def data_from_DB(filter_selectie):
 @cache.memoize()
 def pick_category(categorie, df_OHW):
 
-    mask_cat1 = (df_OHW['Goedgekeurd'] < df_OHW['Aangeboden'])
+    mask_cat1 = (
+        (df_OHW['Goedgekeurd'] == 0) &
+        (df_OHW['Aangeboden'] > 0)
+    )
     mask_cat2 = (
         (df_OHW['Ingekocht'] > df_OHW['Goedgekeurd']) |
         (df_OHW['Gerealiseerd'] > df_OHW['Goedgekeurd'])
