@@ -23,56 +23,56 @@ config_pages = OrderedDict(
 )
 
 
-# NAV VERSION 1
-def get_navbar():
-    navbar = html.Div(
-        [
-            html.Button(
-                html.A(
-                    'Geulen graven',
-                    href='/geulen_graven',
-                    style={'color': 'white',
-                           'text-decoration': 'none'}
-                ),
-                style={"background-color": "#009FDF",
-                       "margin-bottom": "5px",
-                       "display": "block"}
-            ),
-            html.Button(
-                html.A(
-                    'HAS',
-                    href='/HAS',
-                    style={'color': 'white',
-                           'text-decoration': 'none'},
-                ),
-                style={"background-color": "#009FDF",
-                       "margin-bottom": "5px",
-                       "display": "block"}
-            )
-        ],
-        className='fixedElement',
-    )
-    return navbar
+# # NAV VERSION 1
+# def get_navbar():
+#     navbar = html.Div(
+#         [
+#             html.Button(
+#                 html.A(
+#                     'Geulen graven',
+#                     href='/geulen_graven',
+#                     style={'color': 'white',
+#                            'text-decoration': 'none'}
+#                 ),
+#                 style={"background-color": "#009FDF",
+#                        "margin-bottom": "5px",
+#                        "display": "block"}
+#             ),
+#             html.Button(
+#                 html.A(
+#                     'HAS',
+#                     href='/HAS',
+#                     style={'color': 'white',
+#                            'text-decoration': 'none'},
+#                 ),
+#                 style={"background-color": "#009FDF",
+#                        "margin-bottom": "5px",
+#                        "display": "block"}
+#             )
+#         ],
+#         className='fixedElement',
+#     )
+#     return navbar
 
 
 # # NAV VERSION 2
-# def get_navbar():
-#     children = []
-#     for page in config_pages:
-#         temp = dbc.NavItem(
-#             dbc.NavLink(
-#                 config_pages[page]['name'], 
-#                 href=config_pages[page]['link'][0]
-#             )
-#         )
-#         children = children + [temp]
+def get_navbar():
+    children = []
+    for page in config_pages:
+        temp = dbc.NavItem(
+            dbc.NavLink(
+                config_pages[page]['name'], 
+                href=config_pages[page]['link'][0]
+            )
+        )
+        children = children + [temp]
     
-#     navbar = dbc.NavbarSimple(
-#         children=children,
-#         brand='VWT Infratechniek',
-#         className='fixedElement'
-#     )
-#     return navbar
+    navbar = dbc.NavbarSimple(
+        children=children,
+        brand='VWT Infratechniek',
+        className='fixedElement'
+    )
+    return navbar
 
 
 # NAV VERSION 3
