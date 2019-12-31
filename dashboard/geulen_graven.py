@@ -656,6 +656,7 @@ def data_from_DB(filter_selectie):
             'Goedgekeurd': 'float',
             'Gefactureerd totaal': 'float',
             'Gerealiseerd': 'float',
+            'Openstaand': 'float',
             'Project': 'str'
         })
     # apply filters

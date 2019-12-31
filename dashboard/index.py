@@ -6,6 +6,7 @@ import dash_html_components as html
 import geulen_graven
 from collections import OrderedDict
 import has
+import blazen
 
 config_pages = OrderedDict(
     [
@@ -18,65 +19,61 @@ config_pages = OrderedDict(
             'name': 'HAS',
             'link': ['/HAS', '/HAS/'],
             'body': has
+        }),
+        ('blazen', {
+            'name': 'Blazen',
+            'link': ['/blazen', '/blazen/'],
+            'body': blazen
         })
     ]
 )
 
 
-# # NAV VERSION 1
-# def get_navbar():
-#     navbar = html.Div(
-#         [
-#             html.Button(
-#                 html.A(
-#                     'Geulen graven',
-#                     href='/geulen_graven',
-#                     style={'color': 'white',
-#                            'text-decoration': 'none'}
-#                 ),
-#                 style={"background-color": "#009FDF",
-#                        "margin-bottom": "5px",
-#                        "display": "block"}
-#             ),
-#             html.Button(
-#                 html.A(
-#                     'HAS',
-#                     href='/HAS',
-#                     style={'color': 'white',
-#                            'text-decoration': 'none'},
-#                 ),
-#                 style={"background-color": "#009FDF",
-#                        "margin-bottom": "5px",
-#                        "display": "block"}
-#             )
-#         ],
-#         className='fixedElement',
-#     )
-#     return navbar
-
-
-# # NAV VERSION 2
+# NAV VERSION 1
 def get_navbar():
-    children = []
-    for page in config_pages:
-        temp = dbc.NavItem(
-            dbc.NavLink(
-                config_pages[page]['name'], 
-                href=config_pages[page]['link'][0]
-            )
-        )
-        children = children + [temp]
-    
-    navbar = dbc.NavbarSimple(
-        children=children,
-        brand='VWT Infratechniek',
-        className='fixedElement'
+    navbar = html.Div(
+        [
+            html.Button(
+                html.A(
+                    'Geulen graven',
+                    href='/geulen_graven',
+                    style={'color': 'white',
+                           'text-decoration': 'none'}
+                ),
+                style={"background-color": "#009FDF",
+                       "margin-bottom": "5px",
+                       "display": "block"}
+            ),
+            html.Button(
+                html.A(
+                    'HAS',
+                    href='/HAS',
+                    style={'color': 'white',
+                           'text-decoration': 'none'},
+                ),
+                style={"background-color": "#009FDF",
+                       "margin-bottom": "5px",
+                       "display": "block"}
+            ),
+            html.Button( 
+                html.A(
+                    'Blazen',
+                    href='/blazen',
+                    style={'color': 'white',
+                           'text-decoration': 'none'},
+                ),
+                style={"background-color": "#009FDF",
+                       "margin-bottom": "5px",
+                       "display": "block"}
+            ),
+        ],
+        className='fixedElement',
     )
     return navbar
 
-
-# NAV VERSION 3
+# # NAV VERSION 3
 # def get_navbar(huidige_pagina):
+    
 #     for page in config_pages:
 #         if huidige_pagina in config_pages[page]['link']:
 #             huidige_pagina = config_pages[page]['name']
@@ -84,25 +81,30 @@ def get_navbar():
 
 #     dropdown_items = []
 #     for page in config_pages:
-#         temp = [
+#         dropdown_items = dropdown_items + [
 #             dbc.DropdownMenuItem(config_pages[page]['name'], href=config_pages[page]['link'][0]),
 #             dbc.DropdownMenuItem(divider=True)
 #         ]
-#         dropdown_items = dropdown_items + temp
 
-#     navbar = dbc.NavbarSimple(
-#         children=[
-#             dbc.NavLink(huidige_pagina, href='#'),
-#             dbc.DropdownMenu(
-#                 dropdown_items,
-#                 in_navbar=True,
-#                 label='Menu',
-#                 nav=True,
-#             )
-#         ],
-#         id='navbar',
+#     dropdown_items = dropdown_items[:-1]
+
+#     children = [
+#         dbc.NavItem(dbc.NavLink(huidige_pagina, href='#')),
+#         dbc.DropdownMenu(
+#             nav=True,
+#             in_navbar=True,
+#             label='Menu',
+#             children=dropdown_items,
+#         )
+#     ]
+
+#     return dbc.NavbarSimple(
+#         children=children,
+#         brand='VWT Infratechniek',
+#         sticky='top',
+#         dark=True,
+#         color='grey'
 #     )
-#     return navbar
 
 
 app.layout = html.Div([
@@ -126,9 +128,11 @@ def display_page(pathname):
         return geulen_graven.get_body()
     elif pathname == '/HAS':
         return has.get_body()
+    elif pathname == '/blazen':
+        return blazen.get_body()
     else:
         return html.P('''deze pagina bestaat niet, druk op vorige
-                         of een van de paginas in het menu hierboven''')
+                   of een van de paginas in het menu hierboven''')
 
 
 if __name__ == "__main__":
