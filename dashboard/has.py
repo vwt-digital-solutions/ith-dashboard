@@ -3,10 +3,22 @@ from app import app, cache
 from elements import table_styles
 import dash_table
 import dash_core_components as dcc
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import pandas as pd
 import config
+import copy
+import dash_bootstrap_components as dbc
 
+# layout graphs
+layout = dict(
+    autosize=True,
+    automargin=True,
+    margin=dict(le=30, r=30, b=20, t=40),
+    hovermode="closest",
+    plot_bgcolor="#F9F9F9",
+    paper_bgcolor="#F9F9F9",
+    legend=dict(font=dict(size=10), orientation="h"),
+)
 
 # APP LAYOUT
 def get_body():
@@ -14,7 +26,7 @@ def get_body():
         [
             html.Div(
                 [
-                    html.P('Hieronder het datafram van Workflow'),
+                    html.H3('Workflow'),
                     dcc.Dropdown(
                         options=config.checklist_workflow_has,
                         id='checklist_workflow_has',
@@ -30,17 +42,28 @@ def get_body():
             ),
             html.Div(
                 [
-                    html.P('Hieronder het dataframe van FiberConnect (OR statement)'),
-                    dcc.Dropdown(
-                        options=config.checklist_fiberconnect,
-                        id='checklist_fiberconnect',
-                        value=[],
-                        multi=True,
-                    ),
-                    html.Br(),
+                    html.H3('Fiber Connect'),
+                    make_taartdiagram_fiberconnect(),
                     html.Div(
-                        id='tabel_has_fc',
+                        [
+                            dbc.Button(
+                                'Uitleg categorieën',
+                                id='uitleg_fiberconnect'
+                            ),
+                            html.Div(
+                                [
+                                    dcc.Markdown(
+                                        config.uitleg_categorie_fiberconnect
+                                    )
+                                ],
+                                id='uitleg_collapse_fiberconnect',
+                                hidden=True,
+                            )
+                        ]
                     ),
+                    html.Div(
+                        id='tabel_has_fc'
+                    )
                 ],
                 className="pretty_container 1 columns",
             ),
@@ -58,39 +81,42 @@ def get_body():
     ]
 )
 def update_workflow_tabel(filters):
-    tabel = get_table_has_workflow(filters)
-    return tabel
+    df = pd.read_csv(config.workflow_has_csv)
+    df = filter_workflow(df, filters)
+    table = make_table(df)
+    return table
+
+#uitleg button
+@app.callback(
+    Output('uitleg_collapse_fiberconnect', 'hidden'),
+    [Input('uitleg_fiberconnect', 'n_clicks')],
+    [State('uitleg_collapse_fiberconnect', 'hidden')]
+)
+def toggle_collapse_blazen(n, is_open):
+    if n:
+        return not is_open
+    return is_open
 
 
-# tabel 2 - fiberconnect
+
+# tabel 2 - fiberconnect categorie 
 @app.callback(
     Output('tabel_has_fc', 'children'),
     [
-        Input('checklist_fiberconnect', 'value')
+        Input('taartdiagram_fiberconnect', 'clickData')
     ]
 )
-def update_fiberconnect_tabel(filters):
-    tabel = get_table_has_fc(filters)
-    return tabel
-
-
-# helper functions
-@cache.memoize()
-def get_table_has_fc(filter_selectie):
+def generate_tabel_fiberconnect(selected_category):
+    if selected_category is None:
+        return [html.P()]
     df = pd.read_csv(config.fiberconnect_csv)
-    df = filter_fiberconnect(df, filter_selectie)
+    selected_category = selected_category.get('points')[0].get('label')
+    df = pick_category_fiberconnect(selected_category, df)
     tabel = make_table(df)
     return tabel
 
 
-@cache.memoize()
-def get_table_has_workflow(filter_selectie):
-    df = pd.read_csv(config.workflow_has_csv)
-    df = filter_workflow(df, filter_selectie)
-    table = make_table(df)
-    return table
-
-
+# helper functions
 @cache.memoize()
 def make_table(df):
     tabel = html.Div(
@@ -122,13 +148,78 @@ def filter_workflow(df, filters):
     return df
 
 
-def filter_fiberconnect(df, filters):
+@cache.memoize()
+def make_taartdiagram_fiberconnect():
+    
+    workflow_blazen = pd.read_csv(config.fiberconnect_csv)
 
-    if not filters:
-        return df
+    layout_pie = copy.deepcopy(layout)
+    donut = {}
 
-    temp = pd.DataFrame([])
-    for filter in filters:
-        temp = pd.concat([temp, df[df[filter]]], axis=0)
-    temp = temp.drop_duplicates()
-    return temp
+    for cat in config.beschrijving_cat_fiberconnect:
+        df_ = pick_category_fiberconnect(cat, workflow_blazen)
+        sum_ = len(df_)
+        if sum_ > 0:
+            donut[cat] = sum_
+    data_graph = [
+        dict(
+            type="pie",
+            labels=list(donut.keys()),
+            values=list(donut.values()),
+            hoverinfo="percent",
+            textinfo="value",
+            hole=0.5,
+            marker=dict(colors=['#003f5c', '#374c80', '#7a5195',
+                                '#bc5090',  '#ef5675']),
+            domain={"x": [0, 1], "y": [0.30, 1]},
+            sort=False
+        )
+    ]
+    layout_pie["title"] = "Categorieen Fiberconnect (aantal aansluitingen):"
+    layout_pie["clickmode"] = "event+select"
+    layout_pie["font"] = dict(color="#777777")
+    layout_pie["legend"] = dict(
+        font=dict(color="#777777", size="14"),
+        orientation="v",
+        bgcolor="rgba(0,0,0,0)",
+        traceorder='normal',
+        itemclick=True,
+        xanchor='bottom'
+    )
+    layout_pie["showlegend"] = True
+    layout_pie["height"] = 500
+    figure = dict(data=data_graph, layout=layout_pie)
+    return dcc.Graph(id='taartdiagram_fiberconnect', figure=figure)
+
+
+
+# helper functions
+@cache.memoize()
+def pick_category_fiberconnect(categorie, df):
+    df['Opleverdatum'] = pd.to_datetime(df['Opleverdatum'], yearfirst=True)
+
+    # Categories
+    # Has app handmatig ingevuld
+    mask_cat1 = (
+        (df['HasApp_Status'].isna()) &
+        (df['Opleverdatum'].notna()) &
+        (df['Internestatus'] == 2)
+    )
+    # export staat uit 
+    mask_cat2 = (
+        (df['BCExportAan'] == 0) &
+        (df['Internestatus'] ==2) &
+        (df['TG_workflow'].isna())
+    )
+    # sor niet aanwezig bij projecten na 01-01-2019
+    mask_cat3 = (
+        (df['Opleverdatum'] >= pd.Timestamp(2019, 1, 1)) &
+        (df['SOR aanwezig'] != 1)
+    )
+    
+    if categorie == config.beschrijving_cat_fiberconnect[0]:
+        return df[mask_cat1]
+    elif categorie == config.beschrijving_cat_fiberconnect[1]:
+        return df[mask_cat2]
+    elif categorie == config.beschrijving_cat_fiberconnect[2]:
+        return df[mask_cat3]
