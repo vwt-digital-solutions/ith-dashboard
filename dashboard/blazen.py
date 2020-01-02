@@ -79,7 +79,6 @@ def toggle_collapse_blazen(n, is_open):
     ]
 )
 def generate_tabel_blazen(selected_category):
-    print(selected_category)
     if selected_category is None:
         return [html.P()]
     df = pd.read_csv(config.workflow_blazen_csv)
