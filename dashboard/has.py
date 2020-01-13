@@ -20,15 +20,32 @@ layout = dict(
     legend=dict(font=dict(size=10), orientation="h"),
 )
 
-# APP LAYOUT
+
 def get_body():
     page = html.Div(
         [
+            dcc.Tabs(id='tabs_has', value='tab_has_fiberconnect', children=[
+                dcc.Tab(label='Workflow', value='tab_has_workflow'),
+                dcc.Tab(label='Fiberconnect', value='tab_has_fiberconnect'),
+            ]),
+            html.Div(id='tabs-content')
+        ]
+    )
+    return page
+
+
+@app.callback(
+    Output('tabs-content', 'children'),
+    [Input('tabs_has', 'value')]
+)
+def render_content(tab):
+    if tab == 'tab_has_workflow':
+        return html.Div(
             html.Div(
                 [
                     html.H3('Workflow'),
                     dcc.Dropdown(
-                        options=config.checklist_workflow_has,
+                        options=config.checklist_workflow_afgehecht,
                         id='checklist_workflow_has',
                         value=['Administratief Afhechting', 'Berekening restwerkzaamheden', 'Bis Gereed'],
                         multi=True,
@@ -40,6 +57,9 @@ def get_body():
                 ],
                 className="pretty_container 1 columns",
             ),
+        )
+    elif tab == 'tab_has_fiberconnect':
+        return html.Div(
             html.Div(
                 [
                     html.H3('Fiber Connect'),
@@ -67,10 +87,7 @@ def get_body():
                 ],
                 className="pretty_container 1 columns",
             ),
-        ],
-    )
-    return page
-
+        )
 
 # CALLBACKS
 # tabel 1 - workflow
@@ -86,7 +103,8 @@ def update_workflow_tabel(filters):
     table = make_table(df)
     return table
 
-#uitleg button
+
+# uitleg button
 @app.callback(
     Output('uitleg_collapse_fiberconnect', 'hidden'),
     [Input('uitleg_fiberconnect', 'n_clicks')],
@@ -98,8 +116,7 @@ def toggle_collapse_blazen(n, is_open):
     return is_open
 
 
-
-# tabel 2 - fiberconnect categorie 
+# tabel 2 - fiberconnect categorie
 @app.callback(
     Output('tabel_has_fc', 'children'),
     [
@@ -150,7 +167,7 @@ def filter_workflow(df, filters):
 
 @cache.memoize()
 def make_taartdiagram_fiberconnect():
-    
+
     workflow_blazen = pd.read_csv(config.fiberconnect_csv)
 
     layout_pie = copy.deepcopy(layout)
@@ -192,7 +209,6 @@ def make_taartdiagram_fiberconnect():
     return dcc.Graph(id='taartdiagram_fiberconnect', figure=figure)
 
 
-
 # helper functions
 @cache.memoize()
 def pick_category_fiberconnect(categorie, df):
@@ -205,10 +221,10 @@ def pick_category_fiberconnect(categorie, df):
         (df['Opleverdatum'].notna()) &
         (df['Internestatus'] == 2)
     )
-    # export staat uit 
+    # export staat uit
     mask_cat2 = (
         (df['BCExportAan'] == 0) &
-        (df['Internestatus'] ==2) &
+        (df['Internestatus'] == 2) &
         (df['TG_workflow'].isna())
     )
     # sor niet aanwezig bij projecten na 01-01-2019
@@ -216,7 +232,7 @@ def pick_category_fiberconnect(categorie, df):
         (df['Opleverdatum'] >= pd.Timestamp(2019, 1, 1)) &
         (df['SOR aanwezig'] != 1)
     )
-    
+
     if categorie == config.beschrijving_cat_fiberconnect[0]:
         return df[mask_cat1]
     elif categorie == config.beschrijving_cat_fiberconnect[1]:

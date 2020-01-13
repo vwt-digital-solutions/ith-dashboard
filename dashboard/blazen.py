@@ -27,18 +27,20 @@ def get_body():
         [
             html.Div(
                 [
-                    make_taartdiagram_blazen(),
+                    dcc.Dropdown(
+                        options=config.checklist_workflow_afgehecht,
+                        id='checklist_workflow_blazen',
+                        value=['Administratief Afhechting', 'Berekening restwerkzaamheden', 'Bis Gereed'],
+                        multi=True,
+                    ),
+                    html.Br(),
+                    dcc.Graph(id='taartdiagram_blazen'),
                     html.Div(
                         [
-                            dbc.Button(
-                                'Uitleg categorieën',
-                                id='uitleg_blazen'
-                            ),
+                            dbc.Button('Uitleg categorieën', id='uitleg_blazen'),
                             html.Div(
                                 [
-                                    dcc.Markdown(
-                                        config.uitleg_categorie_blazen
-                                    )
+                                    dcc.Markdown(config.uitleg_categorie_blazen)
                                 ],
                                 id='uitleg_collapse_blazen',
                                 hidden=True,
@@ -72,28 +74,41 @@ def toggle_collapse_blazen(n, is_open):
         return not is_open
     return is_open
 
+
 @app.callback(
     Output('tabel_blazen', 'children'),
     [
-        Input('taartdiagram_blazen', 'clickData')
+        Input('taartdiagram_blazen', 'clickData'),
+        Input('checklist_workflow_blazen', 'value')
     ]
 )
-def generate_tabel_blazen(selected_category):
+def generate_tabel_blazen(selected_category, value):
     if selected_category is None:
         return [html.P()]
     df = pd.read_csv(config.workflow_blazen_csv)
+    df = filter(df, value)
     selected_category = selected_category.get('points')[0].get('label')
     df = pick_category_blazen(selected_category, df)
     return make_tabel_blazen(df)
 
+
+@app.callback(
+    Output('taartdiagram_blazen', 'figure'),
+    [Input('checklist_workflow_blazen', 'value')]
+)
+def generate_taart_diagram(value):
+    df = pd.read_csv(config.workflow_blazen_csv)
+    df = filter(df, value)
+    figure = make_taartdiagram_blazen(df)
+    return figure
+
 # taartdiagram
 @cache.memoize()
-def make_taartdiagram_blazen():
-    workflow_blazen = pd.read_csv(config.workflow_blazen_csv)
+def make_taartdiagram_blazen(df):
     layout_pie = copy.deepcopy(layout)
     donut = {}
     for cat in config.beschrijving_cat_blazen:
-        df_ = pick_category_blazen(cat, workflow_blazen)
+        df_ = pick_category_blazen(cat, df)
         sum_ = -(df_['delta_1'].sum().astype('int64'))
         if sum_ > 0:
             donut[cat] = sum_
@@ -125,12 +140,13 @@ def make_taartdiagram_blazen():
     layout_pie["showlegend"] = True
     layout_pie["height"] = 500
     figure = dict(data=data_graph, layout=layout_pie)
-    return dcc.Graph(id='taartdiagram_blazen', figure=figure)
+    return figure
 
 
 # tabel
 def make_tabel_blazen(df):
-    df.sort_values('delta_1', ascending=True, inplace=True)
+    df.rename(columns={'delta_1': 'OHW'}, inplace=True)
+    df.sort_values('OHW', ascending=True, inplace=True)
     tabel = dash_table.DataTable(
         columns=[{"name": i, "id": i} for i in df.columns],
         data=df.to_dict("rows"),
@@ -159,3 +175,8 @@ def pick_category_blazen(categorie, df):
         return df[mask_cat1]
     elif categorie == config.beschrijving_cat_blazen[1]:
         return df[mask_cat2]
+
+def filter(df, filters):
+    for filter in filters:
+        df = df[df['Hoe afgehecht'] != filter]
+    return df
