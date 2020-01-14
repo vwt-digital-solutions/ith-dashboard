@@ -29,49 +29,7 @@ config_pages = OrderedDict(
 )
 
 
-# # NAV VERSION 1
-# def get_navbar():
-#     navbar = html.Div(
-#         [
-#             html.Button(
-#                 html.A(
-#                     'Geulen graven',
-#                     href='/geulen_graven',
-#                     style={'color': 'white',
-#                            'text-decoration': 'none'}
-#                 ),
-#                 style={"background-color": "#009FDF",
-#                        "margin-bottom": "5px",
-#                        "display": "block"}
-#             ),
-#             html.Button(
-#                 html.A(
-#                     'HAS',
-#                     href='/HAS',
-#                     style={'color': 'white',
-#                            'text-decoration': 'none'},
-#                 ),
-#                 style={"background-color": "#009FDF",
-#                        "margin-bottom": "5px",
-#                        "display": "block"}
-#             ),
-#             html.Button( 
-#                 html.A(
-#                     'Blazen',
-#                     href='/blazen',
-#                     style={'color': 'white',
-#                            'text-decoration': 'none'},
-#                 ),
-#                 style={"background-color": "#009FDF",
-#                        "margin-bottom": "5px",
-#                        "display": "block"}
-#             ),
-#         ],
-#         className='fixedElement',
-#     )
-#     return navbar
-
-# NAV VERSION 3
+# NAVBAR
 def get_navbar(huidige_pagina):
 
     for page in config_pages:
@@ -82,7 +40,7 @@ def get_navbar(huidige_pagina):
     dropdown_items = []
     for page in config_pages:
         dropdown_items = dropdown_items + [
-            dbc.DropdownMenuItem(config_pages[page]['name'], href=config_pages[page]['link'][0]),
+            dbc.DropdownMenuItem(config_pages[page]['name'], href=config_pages[page]['link'][0], style={'font-size': '1.5rem'}),
             dbc.DropdownMenuItem(divider=True)
         ]
 
@@ -95,6 +53,7 @@ def get_navbar(huidige_pagina):
             in_navbar=True,
             label='Menu',
             children=dropdown_items,
+            style={'font-size': '1.5rem'}
         )
     ]
 
@@ -105,14 +64,16 @@ def get_navbar(huidige_pagina):
         dark=True,
         color='grey',
         style={
-            'fluid': True
+            'top': 0,
+            'left': 0,
+            'position': 'fixed',
+            'width': '100%'
         }
     )
 
 
 app.layout = html.Div([
     dcc.Location(id='url', refresh=True),
-    #get_navbar(),
     html.Div(id='page-content')
 ])
 
@@ -120,7 +81,9 @@ app.layout = html.Div([
 # CALBACKS
 @app.callback(
     Output('page-content', 'children'),
-    [Input('url', 'pathname')]
+    [
+        Input('url', 'pathname')
+    ]
 )
 def display_page(pathname):
     # startpagina
@@ -128,14 +91,14 @@ def display_page(pathname):
         pathname = '/geulen_graven'
 
     if pathname == '/geulen_graven':
-        return get_navbar(pathname), geulen_graven.get_body()
+        return [get_navbar(pathname), geulen_graven.get_body()]
     elif pathname == '/HAS':
-        return get_navbar(pathname), has.get_body()
+        return [get_navbar(pathname), has.get_body()]
     elif pathname == '/blazen':
-        return get_navbar(pathname), blazen.get_body()
+        return [get_navbar(pathname), blazen.get_body()]
     else:
-        return html.P('''deze pagina bestaat niet, druk op vorige
-                   of een van de paginas in het menu hierboven''')
+        return [get_navbar(pathname), html.P('''deze pagina bestaat niet, druk op vorige
+                   of een van de paginas in het menu hierboven''')]
 
 
 if __name__ == "__main__":

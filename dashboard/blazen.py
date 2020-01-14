@@ -51,15 +51,11 @@ def get_body():
                 className='pretty_container'
             ),
             html.Div(
-                [
-                    html.Div(
-                        id='tabel_blazen',
-                        className="pretty_container 1 columns",
-                    ),
-                ],
-                className="row flex-display",
+                id='tabel_blazen',  
+                className="pretty_container",
+                hidden=True
             ),
-        ]
+        ],
     )
     return page
 
@@ -76,7 +72,10 @@ def toggle_collapse_blazen(n, is_open):
 
 
 @app.callback(
-    Output('tabel_blazen', 'children'),
+    [
+        Output('tabel_blazen', 'children'),
+        Output('tabel_blazen', 'hidden'),
+    ],
     [
         Input('taartdiagram_blazen', 'clickData'),
         Input('checklist_workflow_blazen', 'value')
@@ -84,12 +83,12 @@ def toggle_collapse_blazen(n, is_open):
 )
 def generate_tabel_blazen(selected_category, value):
     if selected_category is None:
-        return [html.P()]
+        return [html.P()], True
     df = pd.read_csv(config.workflow_blazen_csv)
     df = filter(df, value)
     selected_category = selected_category.get('points')[0].get('label')
     df = pick_category_blazen(selected_category, df)
-    return make_tabel_blazen(df)
+    return make_tabel_blazen(df), False
 
 
 @app.callback(

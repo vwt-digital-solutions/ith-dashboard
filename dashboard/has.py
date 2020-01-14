@@ -24,12 +24,13 @@ layout = dict(
 def get_body():
     page = html.Div(
         [
-            dcc.Tabs(id='tabs_has', value='tab_has_fiberconnect', children=[
-                dcc.Tab(label='Workflow', value='tab_has_workflow'),
-                dcc.Tab(label='Fiberconnect', value='tab_has_fiberconnect'),
+            dcc.Tabs(id='tabs_has', value='tab_has_workflow', children=[
+                dcc.Tab(label='Workflow', value='tab_has_workflow', selected_style={'backgroundColor': '#f9f9f9'}),
+                dcc.Tab(label='Fiberconnect', value='tab_has_fiberconnect', selected_style={'backgroundColor': '#f9f9f9'}),
             ]),
             html.Div(id='tabs-content')
-        ]
+        ],
+        className='pretty_container'
     )
     return page
 
@@ -43,7 +44,7 @@ def render_content(tab):
         return html.Div(
             html.Div(
                 [
-                    html.H3('Workflow'),
+                    html.Br(),
                     dcc.Dropdown(
                         options=config.checklist_workflow_afgehecht,
                         id='checklist_workflow_has',
@@ -55,39 +56,37 @@ def render_content(tab):
                         id='tabel_has_wf',
                     ),
                 ],
-                className="pretty_container 1 columns",
             ),
         )
     elif tab == 'tab_has_fiberconnect':
-        return html.Div(
-            html.Div(
-                [
-                    html.H3('Fiber Connect'),
-                    make_taartdiagram_fiberconnect(),
-                    html.Div(
-                        [
-                            dbc.Button(
-                                'Uitleg categorieën',
-                                id='uitleg_fiberconnect'
-                            ),
-                            html.Div(
-                                [
-                                    dcc.Markdown(
-                                        config.uitleg_categorie_fiberconnect
-                                    )
-                                ],
-                                id='uitleg_collapse_fiberconnect',
-                                hidden=True,
-                            )
-                        ]
-                    ),
-                    html.Div(
-                        id='tabel_has_fc'
-                    )
-                ],
-                className="pretty_container 1 columns",
-            ),
+        return html.Div(    
+            [
+                html.Br(),
+                make_taartdiagram_fiberconnect(),
+                html.Div(
+                    [
+                        dbc.Button(
+                            'Uitleg categorieën',
+                            id='uitleg_fiberconnect'
+                        ),
+                        html.Div(
+                            [
+                                dcc.Markdown(
+                                    config.uitleg_categorie_fiberconnect
+                                )
+                            ],
+                            id='uitleg_collapse_fiberconnect',
+                            hidden=True,
+                        ),
+                    ]
+                ),
+                html.Br(),
+                html.Div(
+                    id='tabel_has_fc',
+                ),
+            ],
         )
+
 
 # CALLBACKS
 # tabel 1 - workflow
@@ -118,7 +117,7 @@ def toggle_collapse_blazen(n, is_open):
 
 # tabel 2 - fiberconnect categorie
 @app.callback(
-    Output('tabel_has_fc', 'children'),
+     Output('tabel_has_fc', 'children'),
     [
         Input('taartdiagram_fiberconnect', 'clickData')
     ]
@@ -143,18 +142,19 @@ def make_table(df):
                 data=df.fillna('').astype('str').to_dict('rows'),
                 filter_action='native',
                 sort_action='native',
-                style_table={'overflowX': 'auto',
-                             'maxHeight': '500px',
-                             'overflowY': 'auto'},
                 style_header=table_styles['header'],
                 style_cell=table_styles['cell']['action'],
                 style_filter=table_styles['filter'],
+                style_table={'widht': '100%',
+                             'minWidth': '100%',
+                             'display': 'flex',
+                             'overflowX': 'scroll'},
                 css=[{
                     'selector': 'table',
                     'rule': 'width: 100%;'
                 }],
             )
-        ]
+        ],
     )
     return tabel
 

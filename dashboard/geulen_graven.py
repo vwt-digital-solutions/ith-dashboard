@@ -105,7 +105,7 @@ def get_body():
                                     ),
                                 ],
                                 id="filter_container",
-                                className="pretty_container_title 3 columns",
+                                className="pretty_container_title columns",
                             ),
                             html.Div(
                                 [
@@ -154,11 +154,11 @@ def get_body():
                                     ),
                                 ],
                                 id="download_container",
-                                className="pretty_container_title 3 columns",
+                                className="pretty_container_title columns",
                             ),
                         ],
                         id="info-container",
-                        className="row container-display",
+                        className="container-display",
                     ),
                 ],
             ),
@@ -172,10 +172,10 @@ def get_body():
                             ),
                         ],
                         id='uitleg_1',
-                        className="pretty_container_title 1 columns",
+                        className="pretty_container_title columns",
                     ),
                 ],
-                className="row flex-display",
+                className="container-display",
             ),
             html.Div(
                 [
@@ -207,7 +207,7 @@ def get_body():
                             ),
                         ],
                         id="info-container1",
-                        className="row container-display",
+                        className="container-display",
                     ),
                 ],
             ),
@@ -215,15 +215,15 @@ def get_body():
                 [
                     html.Div(
                             [dcc.Graph(id="Projecten_globaal_graph")],
-                            className="pretty_container 6 columns",
+                            className="pretty_container column",
                     ),
                     html.Div(
                             [dcc.Graph(id="OHW_globaal_graph")],
-                            className="pretty_container 6 columns",
+                            className="pretty_container column",
                     ),
                 ],
-                id="info-container01",
-                className="row flex-display",
+                id="main_graphs",
+                className="container-display",
             ),
             html.Div(
                 [
@@ -237,10 +237,10 @@ def get_body():
                             ),
                         ],
                         id='uitleg_2',
-                        className="pretty_container_title 1 columns",
+                        className="pretty_container_title columns",
                     ),
                 ],
-                className="row flex-display",
+                className="container-display",
             ),
             html.Div(
                 [
@@ -271,7 +271,7 @@ def get_body():
                             ),
                         ],
                         id="info-container3",
-                        className="row container-display",
+                        className="container-display",
                     ),
                 ],
             ),
@@ -298,27 +298,23 @@ def get_body():
                                 ],
                             ),
                         ],
-                        className="pretty_container 4 columns",
+                        className="pretty_container column",
                     ),
                     html.Div(
-                        [dcc.Graph(id="projecten_bakje_graph")],
-                        className="pretty_container 4 columns",
+                        dcc.Graph(id="projecten_bakje_graph"),
+                        className="pretty_container column",
                     ),
                     html.Div(
-                        [dcc.Graph(id="OHW_bakje_graph")],
-                        className="pretty_container 4 columns",
+                        dcc.Graph(id="OHW_bakje_graph"),
+                        className="pretty_container column",
                     ),
                 ],
-                className="row flex-display",
+                className="container-display",
             ),
             html.Div(
-                [
-                    html.Div(
-                        id='status_table_ext',
-                        className="pretty_container 1 columns",
-                    ),
-                ],
-                className="row flex-display",
+                id='status_table_ext',
+                className="pretty_container",
+                hidden=True,
             ),
         ],
         id="mainContainer",
@@ -445,16 +441,19 @@ def figures_selected_category(selected_category, filter_selectie):
 
 # Tabel
 @app.callback(
+    [
         Output('status_table_ext', 'children'),
-        [
-            Input("pie_graph", 'clickData'),
-            Input("checklist_filters", 'value'),
-        ],
+        Output('status_table_ext', 'hidden'),
+    ],
+    [
+        Input("pie_graph", 'clickData'),
+        Input("checklist_filters", 'value'),
+    ],
 )
 def generate_status_table_ext(selected_category, filter_selectie):
 
     if selected_category is None:
-        return [html.P()]
+        return [html.P()], True
     selected_category = selected_category.get('points')[0].get('label')
     df_workflow, df_inkoop, df_revisie, df_OHW = data_from_DB(filter_selectie)
     df_OHW = pick_category(selected_category, df_OHW)
@@ -469,16 +468,17 @@ def generate_status_table_ext(selected_category, filter_selectie):
         dash_table.DataTable(
             columns=[{"name": i, "id": i} for i in df_OHW.columns],
             data=df_OHW.to_dict("rows"),
-            style_table={'overflowX': 'auto'},
+            style_table={'overflowX': 'scroll',
+                            'display': 'flex'},
             style_header=table_styles['header'],
             style_cell=table_styles['cell']['action'],
             style_filter=table_styles['filter'],
             css=[{
                 'selector': 'table',
-                'rule': 'width: 100%;'
+                'rule': 'width: 100%, display: flex;'
             }],
-        ),
-    ]
+        )], False
+    
 
 
 # DOWNLOAD FUNCTIES

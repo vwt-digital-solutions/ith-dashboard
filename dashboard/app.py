@@ -7,6 +7,7 @@ import os
 from google.cloud import kms_v1
 from authentication.azure_auth import AzureOAuth
 from flask_caching import Cache
+import dash_bootstrap_components as dbc
 
 PATH = pathlib.Path(__file__).parent
 DATA_PATH = PATH.joinpath("data").resolve()
@@ -17,6 +18,7 @@ server = flask.Flask(__name__)
 app = dash.Dash(
     __name__,
     meta_tags=[{"name": "viewport", "content": "width=device-width"}],
+    external_stylesheets=[dbc.themes.BOOTSTRAP],
     server=server,
 )
 cache = Cache(app.server, config={
@@ -53,3 +55,4 @@ if config.authentication:
         config.authentication['role'],
         config.authentication['required_scopes']
     )
+
