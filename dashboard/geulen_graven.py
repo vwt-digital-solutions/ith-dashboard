@@ -62,7 +62,7 @@ def get_body():
                                         style={"margin-top": "0px"}
                                     ),
                                     html.P(),
-                                    html.P("(Laatste nieuwe data: 26-11-2019)")
+                                    html.P("(Laatste nieuwe data: 23-12-2019)")
                                 ],
                                 style={"margin-left": "-120px"},
                             )
