@@ -469,7 +469,7 @@ def generate_status_table_ext(selected_category, filter_selectie):
             columns=[{"name": i, "id": i} for i in df_OHW.columns],
             data=df_OHW.to_dict("rows"),
             style_table={'overflowX': 'scroll',
-                            'display': 'flex'},
+                         'display': 'flex'},
             style_header=table_styles['header'],
             style_cell=table_styles['cell']['action'],
             style_filter=table_styles['filter'],
@@ -478,7 +478,6 @@ def generate_status_table_ext(selected_category, filter_selectie):
                 'rule': 'width: 100%, display: flex;'
             }],
         )], False
-    
 
 
 # DOWNLOAD FUNCTIES
@@ -688,19 +687,24 @@ def data_from_DB(filter_selectie):
 @cache.memoize()
 def pick_category(categorie, df_OHW):
 
+    # wacht op goedkeuring
     mask_cat1 = (
         (df_OHW['Goedgekeurd'] == 0) &
         (df_OHW['Aangeboden'] > 0)
     )
+    # meerwerk aanvragen
     mask_cat2 = (
         (df_OHW['Ingekocht'] > df_OHW['Goedgekeurd']) |
         (df_OHW['Gerealiseerd'] > df_OHW['Goedgekeurd'])
     )
+    # mogelijke fout in koppeling WF-Organize
     mask_cat3 = (
         (df_OHW['Ingekocht'] > df_OHW['Gerealiseerd']) |
-        (df_OHW['Gefactureerd totaal'] > df_OHW['Gerealiseerd'])
+        ((df_OHW['Gefactureerd totaal'] + df_OHW['Openstaand']) > df_OHW['Gerealiseerd'])
     )
-    mask_cat4 = (df_OHW['Gerealiseerd'] > df_OHW['Gefactureerd totaal'])
+    # onderfacturatie
+    mask_cat4 = (df_OHW['Gerealiseerd'] > (df_OHW['Gefactureerd totaal'] + df_OHW['Openstaand']))
+    # overig
     mask_cat5 = ((~mask_cat1) & (~mask_cat2) & (~mask_cat3) & (~mask_cat4))
 
     if categorie == config.beschrijving_cat[0]:
