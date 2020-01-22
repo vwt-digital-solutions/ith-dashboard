@@ -59,7 +59,7 @@ def render_content(tab):
             ),
         )
     elif tab == 'tab_has_fiberconnect':
-        return html.Div(    
+        return html.Div(
             [
                 html.Br(),
                 make_taartdiagram_fiberconnect(),
@@ -117,7 +117,7 @@ def toggle_collapse_blazen(n, is_open):
 
 # tabel 2 - fiberconnect categorie
 @app.callback(
-     Output('tabel_has_fc', 'children'),
+    Output('tabel_has_fc', 'children'),
     [
         Input('taartdiagram_fiberconnect', 'clickData')
     ]
