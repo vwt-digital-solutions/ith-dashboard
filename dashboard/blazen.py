@@ -2,6 +2,8 @@ import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import config
+import os
+from google.cloud import firestore
 import pandas as pd
 from app import cache, app
 import copy
@@ -51,7 +53,7 @@ def get_body():
                 className='pretty_container'
             ),
             html.Div(
-                id='tabel_blazen',  
+                id='tabel_blazen',
                 className="pretty_container",
                 hidden=True
             ),
@@ -81,13 +83,15 @@ def toggle_collapse_blazen(n, is_open):
         Input('checklist_workflow_blazen', 'value')
     ]
 )
-def generate_tabel_blazen(selected_category, value):
+def generate_tabel_blazen(selected_category, filter_selectie):
     if selected_category is None:
         return [html.P()], True
-    df = pd.read_csv(config.workflow_blazen_csv)
-    df = filter(df, value)
+    # df = pd.read_csv(config.workflow_blazen_csv)
+    # df = filter(df, value)
+    df = data_from_DB(filter_selectie)
     selected_category = selected_category.get('points')[0].get('label')
-    df = pick_category_blazen(selected_category, df)
+    df = df[df[selected_category[0:4]]]
+    # df = pick_category_blazen(selected_category, df)
     return make_tabel_blazen(df), False
 
 
@@ -95,9 +99,10 @@ def generate_tabel_blazen(selected_category, value):
     Output('taartdiagram_blazen', 'figure'),
     [Input('checklist_workflow_blazen', 'value')]
 )
-def generate_taart_diagram(value):
-    df = pd.read_csv(config.workflow_blazen_csv)
-    df = filter(df, value)
+def generate_taart_diagram(filter_selectie):
+    # df = pd.read_csv(config.workflow_blazen_csv)
+    # df = filter(df, value)
+    df = data_from_DB(filter_selectie)
     figure = make_taartdiagram_blazen(df)
     return figure
 
@@ -107,7 +112,8 @@ def make_taartdiagram_blazen(df):
     layout_pie = copy.deepcopy(layout)
     donut = {}
     for cat in config.beschrijving_cat_blazen:
-        df_ = pick_category_blazen(cat, df)
+        # df_ = pick_category_blazen(cat, df)
+        df_ = df[df[cat[0:4]]]
         sum_ = -(df_['delta_1'].sum().astype('int64'))
         if sum_ > 0:
             donut[cat] = sum_
@@ -161,21 +167,53 @@ def make_tabel_blazen(df):
     return tabel
 
 # helper functions
+# @cache.memoize()
+# def pick_category_blazen(categorie, df):
+
+#     mask_cat1 = (
+#         (df['Goedgekeurd'] == 0) &
+#         (df['Aangeboden'] > 0)
+#     )
+#     mask_cat2 = df['delta_1'] < 0
+
+#     if categorie == config.beschrijving_cat_blazen[0]:
+#         return df[mask_cat1]
+#     elif categorie == config.beschrijving_cat_blazen[1]:
+#         return df[mask_cat2]
+
+# def filter(df, filters):
+#     for filter in filters:
+#         df = df[df['Hoe afgehecht'] != filter]
+#     return df
+
+
 @cache.memoize()
-def pick_category_blazen(categorie, df):
+def data_from_DB(filter_selectie):
+    gpath = '/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/vwt-d-gew1-ith-dashboard-aef62ff97387.json'
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gpath
+    db = firestore.Client()
+    p_ref = db.collection('Projecten_blazen')
 
-    mask_cat1 = (
-        (df['Goedgekeurd'] == 0) &
-        (df['Aangeboden'] > 0)
-    )
-    mask_cat2 = df['delta_1'] < 0
+    def get_dataframe(docs, dataframe):
+        for doc in docs:
+            Pnummer = doc.id
+            doc = doc.to_dict()
+            doc['Pnummer'] = Pnummer
+            dataframe += [doc]
+        return dataframe
 
-    if categorie == config.beschrijving_cat_blazen[0]:
-        return df[mask_cat1]
-    elif categorie == config.beschrijving_cat_blazen[1]:
-        return df[mask_cat2]
+    dataframe = []
+    docs = p_ref.where('Afgehecht', '==', 'niet afgehecht').stream()
+    dataframe = get_dataframe(docs, dataframe)
+    if not ('Administratief Afhechting' in filter_selectie):
+        docs = p_ref.where('Afgehecht', '==', 'Administratief Afhechting').stream()
+        dataframe = get_dataframe(docs, dataframe)
+    if not ('Berekening restwerkzaamheden' in filter_selectie):
+        docs = p_ref.where('Afgehecht', '==', 'Berekening restwerkzaamheden').stream()
+        dataframe = get_dataframe(docs, dataframe)
+    if not ('Bis Gereed' in filter_selectie):
+        docs = p_ref.where('Afgehecht', '==', 'Bis Gereed').stream()
+        dataframe = get_dataframe(docs, dataframe)
+    df_wf = pd.DataFrame(dataframe)
 
-def filter(df, filters):
-    for filter in filters:
-        df = df[df['Hoe afgehecht'] != filter]
-    return df
+    return df_wf

@@ -1,5 +1,7 @@
 import dash_html_components as html
 from app import app, cache
+import os
+from google.cloud import firestore
 from elements import table_styles
 import dash_table
 import dash_core_components as dcc
@@ -96,9 +98,10 @@ def render_content(tab):
         Input('checklist_workflow_has', 'value')
     ]
 )
-def update_workflow_tabel(filters):
-    df = pd.read_csv(config.workflow_has_csv)
-    df = filter_workflow(df, filters)
+def update_workflow_tabel(filter_selectie):
+    # df = pd.read_csv(config.workflow_has_csv)
+    # df = filter_workflow(df, filters)
+    df, _ = data_from_DB(filter_selectie)
     table = make_table(df)
     return table
 
@@ -119,15 +122,18 @@ def toggle_collapse_blazen(n, is_open):
 @app.callback(
     Output('tabel_has_fc', 'children'),
     [
-        Input('taartdiagram_fiberconnect', 'clickData')
+        Input('taartdiagram_fiberconnect', 'clickData'),
     ]
 )
 def generate_tabel_fiberconnect(selected_category):
     if selected_category is None:
         return [html.P()]
-    df = pd.read_csv(config.fiberconnect_csv)
+    # df = pd.read_csv(config.fiberconnect_csv)
+    _, df = data_from_DB(['Administratief Afhechting', 'Berekening restwerkzaamheden', 'Bis Gereed'])
     selected_category = selected_category.get('points')[0].get('label')
-    df = pick_category_fiberconnect(selected_category, df)
+    df = df[df[selected_category[0:4]]]
+    df['Opleverdatum'] = pd.to_datetime(df['Opleverdatum'], yearfirst=True)
+    # df = pick_category_fiberconnect(selected_category, df)
     tabel = make_table(df)
     return tabel
 
@@ -159,22 +165,22 @@ def make_table(df):
     return tabel
 
 
-def filter_workflow(df, filters):
-    for filter in filters:
-        df = df[df['Hoe afgehecht'] != filter]
-    return df
+# def filter_workflow(df, filters):
+#     for filter in filters:
+#         df = df[df['Hoe afgehecht'] != filter]
+#     return df
 
 
 @cache.memoize()
 def make_taartdiagram_fiberconnect():
 
-    workflow_blazen = pd.read_csv(config.fiberconnect_csv)
+    _, df = data_from_DB(['Administratief Afhechting', 'Berekening restwerkzaamheden', 'Bis Gereed'])
 
     layout_pie = copy.deepcopy(layout)
     donut = {}
 
     for cat in config.beschrijving_cat_fiberconnect:
-        df_ = pick_category_fiberconnect(cat, workflow_blazen)
+        df_ = df[df[cat[0:4]]]
         sum_ = len(df_)
         if sum_ > 0:
             donut[cat] = sum_
@@ -210,32 +216,69 @@ def make_taartdiagram_fiberconnect():
 
 
 # helper functions
+# @cache.memoize()
+# def pick_category_fiberconnect(categorie, df):
+#     df['Opleverdatum'] = pd.to_datetime(df['Opleverdatum'], yearfirst=True)
+
+#     # Categories
+#     # Has app handmatig ingevuld
+#     mask_cat1 = (
+#         (df['HasApp_Status'].isna()) &
+#         (df['Opleverdatum'].notna()) &
+#         (df['Internestatus'] == 2)
+#     )
+#     # export staat uit
+#     mask_cat2 = (
+#         (df['BCExportAan'] == 0) &
+#         (df['Internestatus'] == 2) &
+#         (df['TG_workflow'].isna())
+#     )
+#     # sor niet aanwezig bij projecten na 01-01-2019
+#     mask_cat3 = (
+#         (df['Opleverdatum'] >= pd.Timestamp(2019, 1, 1)) &
+#         (df['SOR aanwezig'] != 1)
+#     )
+
+#     if categorie == config.beschrijving_cat_fiberconnect[0]:
+#         return df[mask_cat1]
+#     elif categorie == config.beschrijving_cat_fiberconnect[1]:
+#         return df[mask_cat2]
+#     elif categorie == config.beschrijving_cat_fiberconnect[2]:
+#         return df[mask_cat3]
+
 @cache.memoize()
-def pick_category_fiberconnect(categorie, df):
-    df['Opleverdatum'] = pd.to_datetime(df['Opleverdatum'], yearfirst=True)
+def data_from_DB(filter_selectie):
+    gpath = '/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/vwt-d-gew1-ith-dashboard-aef62ff97387.json'
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gpath
+    db = firestore.Client()
+    p_ref = db.collection('Projecten_haswf')
+    p_ref_fc = db.collection('Projecten_hasfc')
 
-    # Categories
-    # Has app handmatig ingevuld
-    mask_cat1 = (
-        (df['HasApp_Status'].isna()) &
-        (df['Opleverdatum'].notna()) &
-        (df['Internestatus'] == 2)
-    )
-    # export staat uit
-    mask_cat2 = (
-        (df['BCExportAan'] == 0) &
-        (df['Internestatus'] == 2) &
-        (df['TG_workflow'].isna())
-    )
-    # sor niet aanwezig bij projecten na 01-01-2019
-    mask_cat3 = (
-        (df['Opleverdatum'] >= pd.Timestamp(2019, 1, 1)) &
-        (df['SOR aanwezig'] != 1)
-    )
+    def get_dataframe(docs, dataframe):
+        for doc in docs:
+            Pnummer = doc.id
+            doc = doc.to_dict()
+            doc['Pnummer'] = Pnummer
+            dataframe += [doc]
+        return dataframe
 
-    if categorie == config.beschrijving_cat_fiberconnect[0]:
-        return df[mask_cat1]
-    elif categorie == config.beschrijving_cat_fiberconnect[1]:
-        return df[mask_cat2]
-    elif categorie == config.beschrijving_cat_fiberconnect[2]:
-        return df[mask_cat3]
+    dataframe = []
+    docs = p_ref.where('Afgehecht', '==', 'niet afgehecht').stream()
+    dataframe = get_dataframe(docs, dataframe)
+    if not ('Administratief Afhechting' in filter_selectie):
+        docs = p_ref.where('Afgehecht', '==', 'Administratief Afhechting').stream()
+        dataframe = get_dataframe(docs, dataframe)
+    if not ('Berekening restwerkzaamheden' in filter_selectie):
+        docs = p_ref.where('Afgehecht', '==', 'Berekening restwerkzaamheden').stream()
+        dataframe = get_dataframe(docs, dataframe)
+    if not ('Bis Gereed' in filter_selectie):
+        docs = p_ref.where('Afgehecht', '==', 'Bis Gereed').stream()
+        dataframe = get_dataframe(docs, dataframe)
+    df_wf = pd.DataFrame(dataframe)
+
+    dataframe2 = []
+    docs = p_ref_fc.stream()
+    dataframe2 = get_dataframe(docs, dataframe2)
+    df_fc = pd.DataFrame(dataframe2)
+
+    return df_wf, df_fc
