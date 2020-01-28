@@ -216,10 +216,10 @@ def get_body():
             ),
             html.Div(
                 [
-                    html.Div(
-                            [dcc.Graph(id="Projecten_globaal_graph")],
-                            className="pretty_container column",
-                    ),
+                    # html.Div(
+                    #         [dcc.Graph(id="Projecten_globaal_graph")],
+                    #         className="pretty_container column",
+                    # ),
                     html.Div(
                             [dcc.Graph(id="OHW_globaal_graph")],
                             className="pretty_container column",
@@ -302,10 +302,10 @@ def get_body():
                         ],
                         className="pretty_container column",
                     ),
-                    html.Div(
-                        dcc.Graph(id="projecten_bakje_graph"),
-                        className="pretty_container column",
-                    ),
+                    # html.Div(
+                    #     dcc.Graph(id="projecten_bakje_graph"),
+                    #     className="pretty_container column",
+                    # ),
                     html.Div(
                         dcc.Graph(id="OHW_bakje_graph"),
                         className="pretty_container column",
@@ -366,10 +366,11 @@ def update_text(data1, data2):
 
 # Globale grafieken
 @app.callback(
-    [Output("Projecten_globaal_graph", "figure"),
-     Output("OHW_globaal_graph", "figure"),
-     Output("pie_graph", "figure"),
-     Output("aggregate_data", "data")
+    [
+        # Output("Projecten_globaal_graph", "figure"),
+        Output("OHW_globaal_graph", "figure"),
+        Output("pie_graph", "figure"),
+        Output("aggregate_data", "data")
      ],
     [Input("checklist_filters", 'value')]
 )
@@ -380,16 +381,17 @@ def make_global_figures(filter_selectie):
     category = 'global'
     if df.empty | df2.empty:
         raise PreventUpdate
-    fig_p, fig_OHW, fig_pie, table, stats = generate_graph(
+    _, fig_OHW, fig_pie, table, stats = generate_graph(
         category, df, df2, df_tot=None)
-    return [fig_p, fig_OHW, fig_pie, stats]
+    return [fig_OHW, fig_pie, stats]
 
 
 @app.callback(
-    [Output("projecten_bakje_graph", "figure"),
-     Output("OHW_bakje_graph", "figure"),
-     Output('status_table_ext', 'children'),
-     Output("aggregate_data2", "data")],
+    [
+        #  Output("projecten_bakje_graph", "figure"),
+        Output("OHW_bakje_graph", "figure"),
+        Output('status_table_ext', 'children'),
+        Output("aggregate_data2", "data")],
     [Input("checklist_filters", 'value'),
      Input("pie_graph", 'clickData')],
 )
@@ -408,10 +410,10 @@ def make_category_figures(filter_selectie, category):
     df = df[df[category[0:4] + '_' + version]]
     if df.empty:
         raise PreventUpdate
-    fig_p, fig_OHW, fig_pie, table, stats = generate_graph(
+    _, fig_OHW, fig_pie, table, stats = generate_graph(
         category, df, df2, df_tot)
 
-    return [fig_p, fig_OHW, table, stats]
+    return [fig_OHW, table, stats]
 
 
 # DOWNLOAD FUNCTIES
@@ -719,9 +721,10 @@ def generate_graph(category, df, df2, df_tot):
             type="line",
             x=pOHW.index,
             y=pOHW,
-            name="pOHW",
+            name="projecten_OHW",
             opacity=0.5,
             hoverinfo="skip",
+            yaxis='y2'
         ),
         dict(
             type="line",
@@ -741,11 +744,12 @@ def generate_graph(category, df, df2, df_tot):
         ),
     ]
     layout_OHW = copy.deepcopy(layout)
-    layout_OHW["title"] = "OHW & number of projects with OHW (+10.000)"
+    layout_OHW["title"] = "OHW, gefactureerd, ingekocht en aantal projecten OHW (rechter y-as) "
     layout_OHW["dragmode"] = "select"
     layout_OHW["showlegend"] = True
     layout_OHW["autosize"] = True
     layout_OHW["yaxis"] = dict(title='[m]')
+    layout_OHW['yaxis2'] = dict(side='right', overlaying='y')
     figure_OHW = dict(data=data_OHW, layout=layout_OHW)
 
     return figure_projects, figure_OHW, figure_pie, table, stats
@@ -784,7 +788,6 @@ def processed_data(df, df2, df_tot, version, category):
         for cat in config.beschrijving_cat:
             mOHW = df[(df[cat[0:4] + '_' + version.replace('-', '_')]) &
                       (df['OHW_' + version.replace('-', '_')] < 0)]['OHW_' + version.replace('-', '_')].sum()
-            print(mOHW)
             if mOHW != 0:
                 donut[cat] = -mOHW
 
@@ -817,7 +820,7 @@ def processed_data(df, df2, df_tot, version, category):
         pOHW['Datum'] = df['Datum_WF'].iloc[0]
         pOHW_t = []
         for date in set(df['Datum_WF'].dropna().sum()):
-            pOHW_t += [df[df['OHW_' + date.replace('-', '_')] < 0]['OHW_' + date.replace('-', '_')].count()+10000]
+            pOHW_t += [df[df['OHW_' + date.replace('-', '_')] < 0]['OHW_' + date.replace('-', '_')].count()]
         pOHW['pOHW'] = pOHW_t
         pOHW.set_index('Datum', inplace=True)
         pOHW = pOHW['pOHW']
@@ -867,7 +870,7 @@ def processed_data(df, df2, df_tot, version, category):
         pOHW_t = []
         for date in set(df['Datum_WF'].dropna().sum()):
             pOHW_t += [df[(df_tot[category[0:4] + '_' + date.replace('-', '_')]) &
-                          (df['OHW_' + date.replace('-', '_')] < 0)]['OHW_' + date.replace('-', '_')].count()+10000]
+                          (df['OHW_' + date.replace('-', '_')] < 0)]['OHW_' + date.replace('-', '_')].count()]
         pOHW['pOHW'] = pOHW_t
         pOHW.set_index('Datum', inplace=True)
         pOHW = pOHW['pOHW']
