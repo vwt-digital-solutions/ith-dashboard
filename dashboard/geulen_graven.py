@@ -406,7 +406,7 @@ def make_category_figures(filter_selectie, category):
     if (df.empty) | (df2.empty):
         raise PreventUpdate
 
-    version = '2019_12_23'
+    version = max(df['Datum_WF'].dropna().sum()).replace('-', '_')
     df = df[df[category[0:4] + '_' + version]]
 
     if df.empty:
@@ -449,7 +449,7 @@ def download_excel():
     category = flask.request.args.get('categorie')
     filter_selectie = flask.request.args.get('filters')
     df, df2 = data_from_DB(filter_selectie)
-    version = '2019-12-23'
+    version = max(df['Datum_WF'].dropna().sum())
 
     df = df[df[category[0:4] + '_' + version.replace('-', '_')]]
     df_table = filter_version(df, version)
@@ -481,7 +481,7 @@ def download_excel():
 def download_excel1():
     filter_selectie = flask.request.args.get('filters')
     df, df2 = data_from_DB(filter_selectie)
-    version = '2019-12-23'
+    version = max(df['Datum_WF'].dropna().sum())
 
     df_table = filter_version(df, version)
     df_table = df_table.merge(df2.groupby('Project').agg(
@@ -555,38 +555,37 @@ def data_from_DB(filter_selectie):
             dataframe += [doc]
         return dataframe
 
-    version = 'ever'
     dataframe = []
     if not ('NL' in filter_selectie):
-        docs = p_ref.where('OHW_' + version, '==', True).where('Afgehecht', '==', 'niet afgehecht').stream()
+        docs = p_ref.where('OHW_ever', '==', True).where('Afgehecht', '==', 'niet afgehecht').stream()
         dataframe = get_dataframe(docs, dataframe)
         if not ('AF_1' in filter_selectie):
-            docs = p_ref.where('OHW_' + version, '==', True).where('Afgehecht', '==', 'Administratief Afhechting').stream()
+            docs = p_ref.where('OHW_ever', '==', True).where('Afgehecht', '==', 'Administratief Afhechting').stream()
             dataframe = get_dataframe(docs, dataframe)
         if not ('AF_2' in filter_selectie):
-            docs = p_ref.where('OHW_' + version, '==', True).where('Afgehecht', '==', 'Berekening restwerkzaamheden').stream()
+            docs = p_ref.where('OHW_ever', '==', True).where('Afgehecht', '==', 'Berekening restwerkzaamheden').stream()
             dataframe = get_dataframe(docs, dataframe)
         if not ('AF_3' in filter_selectie):
-            docs = p_ref.where('OHW_' + version, '==', True).where('Afgehecht', '==', 'Bis Gereed').stream()
+            docs = p_ref.where('OHW_ever', '==', True).where('Afgehecht', '==', 'Bis Gereed').stream()
             dataframe = get_dataframe(docs, dataframe)
     elif ('NL' in filter_selectie):
-        docs = p_ref.where('OHW_' + version, '==', True).where(
+        docs = p_ref.where('OHW_ever', '==', True).where(
             'Afgehecht', '==', 'niet afgehecht').where('nullijn', '==', False).stream()
         dataframe = get_dataframe(docs, dataframe)
         if not ('AF_1' in filter_selectie):
-            docs = p_ref.where('OHW_' + version, '==', True).where(
+            docs = p_ref.where('OHW_ever', '==', True).where(
                 'Afgehecht', '==', 'Administratief Afhechting').where('nullijn', '==', False).stream()
             dataframe = get_dataframe(docs, dataframe)
         if not ('AF_2' in filter_selectie):
-            docs = p_ref.where('OHW_' + version, '==', True).where(
+            docs = p_ref.where('OHW_ever', '==', True).where(
                 'Afgehecht', '==', 'Berekening restwerkzaamheden').where('nullijn', '==', False).stream()
             dataframe = get_dataframe(docs, dataframe)
         if not ('AF_3' in filter_selectie):
-            docs = p_ref.where('OHW_' + version, '==', True).where(
+            docs = p_ref.where('OHW_ever', '==', True).where(
                 'Afgehecht', '==', 'Bis Gereed').where('nullijn', '==', False).stream()
             dataframe = get_dataframe(docs, dataframe)
     else:
-        docs = p_ref.where('OHW_' + version, '==', True).stream()
+        docs = p_ref.where('OHW_ever', '==', True).stream()
         dataframe = get_dataframe(docs, dataframe)
     df = pd.DataFrame(dataframe)
     df = df.fillna(False)
@@ -796,28 +795,30 @@ def processed_data(df, df2, df_tot, version, category):
 
         OHW = pd.DataFrame()
         OHW['Datum'] = df['Datum_WF'].iloc[0]
-        OHW['OHW'] = [df['OHW_2019_11_01'].sum(),
-                      df['OHW_2019_11_12'].sum(),
-                      df['OHW_2019_11_26'].sum(),
-                      df['OHW_2019_12_23'].sum()]
+        OHW_t = []
+        for date in set(df['Datum_WF'].dropna().sum()):
+            OHW_t += [df['OHW_' + date.replace('-', '_')].sum()]
+        OHW['OHW'] = OHW_t
         OHW.set_index('Datum', inplace=True)
         OHW = OHW['OHW']
 
         fac = pd.DataFrame()
         fac['Datum'] = df['Datum_WF'].iloc[0]
-        fac['Gefactureerd'] = [filter_fac(df[df['OHW_2019_11_01'] < 0], 0),
-                               filter_fac(df[df['OHW_2019_11_12'] < 0], 1),
-                               filter_fac(df[df['OHW_2019_11_26'] < 0], 2),
-                               filter_fac(df[df['OHW_2019_12_23'] < 0], 3)]
+        fac_t = []
+        i = 0
+        for date in set(df['Datum_WF'].dropna().sum()):
+            fac_t += [filter_fac(df[df['OHW_' + date.replace('-', '_')] < 0], i)]
+            i += 1
+        fac['Gefactureerd'] = fac_t
         fac.set_index('Datum', inplace=True)
         fac = fac['Gefactureerd']
 
         pOHW = pd.DataFrame()
         pOHW['Datum'] = df['Datum_WF'].iloc[0]
-        pOHW['pOHW'] = [df[df['OHW_2019_11_01'] < 0]['OHW_2019_11_01'].count()+10000,
-                        df[df['OHW_2019_11_12'] < 0]['OHW_2019_11_12'].count()+10000,
-                        df[df['OHW_2019_11_26'] < 0]['OHW_2019_11_26'].count()+10000,
-                        df[df['OHW_2019_12_23'] < 0]['OHW_2019_12_23'].count()+10000]
+        pOHW_t = []
+        for date in set(df['Datum_WF'].dropna().sum()):
+            pOHW_t += [df[df['OHW_' + date.replace('-', '_')] < 0]['OHW_' + date.replace('-', '_')].count()+10000]
+        pOHW['pOHW'] = pOHW_t
         pOHW.set_index('Datum', inplace=True)
         pOHW = pOHW['pOHW']
 
@@ -838,28 +839,32 @@ def processed_data(df, df2, df_tot, version, category):
 
         OHW = pd.DataFrame()
         OHW['Datum'] = df_tot['Datum_WF'].iloc[0]
-        OHW['OHW'] = [df_tot[df_tot[category[0:4] + '_2019_11_01']]['OHW_2019_11_01'].sum(),
-                      df_tot[df_tot[category[0:4] + '_2019_11_12']]['OHW_2019_11_12'].sum(),
-                      df_tot[df_tot[category[0:4] + '_2019_11_26']]['OHW_2019_11_26'].sum(),
-                      df_tot[df_tot[category[0:4] + '_2019_12_23']]['OHW_2019_12_23'].sum()]
+        OHW_t = []
+        for date in set(df['Datum_WF'].dropna().sum()):
+            OHW_t += [df_tot[df_tot[category[0:4] + '_' + date.replace('-', '_')]]['OHW_' + date.replace('-', '_')].sum()]
+        OHW['OHW'] = OHW_t
         OHW.set_index('Datum', inplace=True)
         OHW = OHW['OHW']
 
         fac = pd.DataFrame()
         fac['Datum'] = df['Datum_WF'].iloc[0]
-        fac['Gefactureerd'] = [filter_fac(df[(df_tot[category[0:4] + '_2019_11_01']) & (df['OHW_2019_11_01'] < 0)], 0),
-                               filter_fac(df[(df_tot[category[0:4] + '_2019_11_12']) & (df['OHW_2019_11_12'] < 0)], 1),
-                               filter_fac(df[(df_tot[category[0:4] + '_2019_11_26']) & (df['OHW_2019_11_26'] < 0)], 2),
-                               filter_fac(df[(df_tot[category[0:4] + '_2019_12_23']) & (df['OHW_2019_12_23'] < 0)], 3)]
+        fac_t = []
+        i = 0
+        for date in set(df['Datum_WF'].dropna().sum()):
+            fac_t += [filter_fac(df[(df_tot[category[0:4] + '_' + date.replace('-', '_')]) &
+                                    (df['OHW_' + date.replace('-', '_')] < 0)], i)]
+            i += 1
+        fac['Gefactureerd'] = fac_t
         fac.set_index('Datum', inplace=True)
         fac = fac['Gefactureerd']
 
         pOHW = pd.DataFrame()
         pOHW['Datum'] = df['Datum_WF'].iloc[0]
-        pOHW['pOHW'] = [df[(df_tot[category[0:4] + '_2019_11_01']) & (df['OHW_2019_11_01'] < 0)]['OHW_2019_11_01'].count()+10000,
-                        df[(df_tot[category[0:4] + '_2019_11_12']) & (df['OHW_2019_11_12'] < 0)]['OHW_2019_11_12'].count()+10000,
-                        df[(df_tot[category[0:4] + '_2019_11_26']) & (df['OHW_2019_11_26'] < 0)]['OHW_2019_11_26'].count()+10000,
-                        df[(df_tot[category[0:4] + '_2019_12_23']) & (df['OHW_2019_12_23'] < 0)]['OHW_2019_12_23'].count()+10000]
+        pOHW_t = []
+        for date in set(df['Datum_WF'].dropna().sum()):
+            pOHW_t += [df[(df_tot[category[0:4] + '_' + date.replace('-', '_')]) &
+                          (df['OHW_' + date.replace('-', '_')] < 0)]['OHW_' + date.replace('-', '_')].count()+10000]
+        pOHW['pOHW'] = pOHW_t
         pOHW.set_index('Datum', inplace=True)
         pOHW = pOHW['pOHW']
 
