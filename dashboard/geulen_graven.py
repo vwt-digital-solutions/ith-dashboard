@@ -824,7 +824,7 @@ def processed_data(df, df2, df_tot, version, category):
 
         OHW_stat = OHW[-1]
 
-        stats = {'0': str(len(df[df['OHW_' + date.replace('-', '_')] < 0])),
+        stats = {'0': str(len(df[df['OHW_' + version.replace('-', '_')] < 0])),
                  '1': str(-OHW_stat),
                  '2': str(int(df_table['Extra werk'].sum()))}
 
