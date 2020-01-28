@@ -89,16 +89,15 @@ app.layout = html.Div([
 def display_page(pathname):
     # startpagina
     if pathname == '/':
-        pathname = '/geulen_graven'
-
+        return [get_navbar('/geulen_graven'), geulen_graven.get_body()]
     if pathname == '/geulen_graven':
         return [get_navbar(pathname), geulen_graven.get_body()]
-    elif pathname == '/HAS':
+    if pathname == '/HAS':
         return [get_navbar(pathname), has.get_body()]
-    elif pathname == '/blazen':
+    if pathname == '/blazen':
         return [get_navbar(pathname), blazen.get_body()]
-    else:
-        return [get_navbar(pathname), html.P('''deze pagina bestaat niet, druk op vorige
+
+    return [get_navbar(pathname), html.P('''deze pagina bestaat niet, druk op vorige
                    of een van de paginas in het menu hierboven''')]
 
 

@@ -55,4 +55,3 @@ if config.authentication:
         config.authentication['role'],
         config.authentication['required_scopes']
     )
-

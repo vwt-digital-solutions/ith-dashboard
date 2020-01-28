@@ -61,7 +61,7 @@ def render_content(tab):
                 ],
             ),
         )
-    elif tab == 'tab_has_fiberconnect':
+    if tab == 'tab_has_fiberconnect':
         return html.Div(
             [
                 html.Br(),
