@@ -99,8 +99,6 @@ def render_content(tab):
     ]
 )
 def update_workflow_tabel(filter_selectie):
-    # df = pd.read_csv(config.workflow_has_csv)
-    # df = filter_workflow(df, filters)
     df, _ = data_from_DB(filter_selectie)
     table = make_table(df)
     return table
@@ -128,12 +126,10 @@ def toggle_collapse_blazen(n, is_open):
 def generate_tabel_fiberconnect(selected_category):
     if selected_category is None:
         return [html.P()]
-    # df = pd.read_csv(config.fiberconnect_csv)
     _, df = data_from_DB(['Administratief Afhechting', 'Berekening restwerkzaamheden', 'Bis Gereed'])
     selected_category = selected_category.get('points')[0].get('label')
     df = df[df[selected_category[0:4]]]
     df['Opleverdatum'] = pd.to_datetime(df['Opleverdatum'], yearfirst=True)
-    # df = pick_category_fiberconnect(selected_category, df)
     tabel = make_table(df)
     return tabel
 
@@ -163,12 +159,6 @@ def make_table(df):
         ],
     )
     return tabel
-
-
-# def filter_workflow(df, filters):
-#     for filter in filters:
-#         df = df[df['Hoe afgehecht'] != filter]
-#     return df
 
 
 @cache.memoize()
@@ -214,37 +204,6 @@ def make_taartdiagram_fiberconnect():
     figure = dict(data=data_graph, layout=layout_pie)
     return dcc.Graph(id='taartdiagram_fiberconnect', figure=figure)
 
-
-# helper functions
-# @cache.memoize()
-# def pick_category_fiberconnect(categorie, df):
-#     df['Opleverdatum'] = pd.to_datetime(df['Opleverdatum'], yearfirst=True)
-
-#     # Categories
-#     # Has app handmatig ingevuld
-#     mask_cat1 = (
-#         (df['HasApp_Status'].isna()) &
-#         (df['Opleverdatum'].notna()) &
-#         (df['Internestatus'] == 2)
-#     )
-#     # export staat uit
-#     mask_cat2 = (
-#         (df['BCExportAan'] == 0) &
-#         (df['Internestatus'] == 2) &
-#         (df['TG_workflow'].isna())
-#     )
-#     # sor niet aanwezig bij projecten na 01-01-2019
-#     mask_cat3 = (
-#         (df['Opleverdatum'] >= pd.Timestamp(2019, 1, 1)) &
-#         (df['SOR aanwezig'] != 1)
-#     )
-
-#     if categorie == config.beschrijving_cat_fiberconnect[0]:
-#         return df[mask_cat1]
-#     elif categorie == config.beschrijving_cat_fiberconnect[1]:
-#         return df[mask_cat2]
-#     elif categorie == config.beschrijving_cat_fiberconnect[2]:
-#         return df[mask_cat3]
 
 @cache.memoize()
 def data_from_DB(filter_selectie):

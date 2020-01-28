@@ -402,16 +402,12 @@ def make_category_figures(filter_selectie, category):
         category = category.get('points')[0].get('label')
     df, df2 = data_from_DB(filter_selectie)
     df_tot = df
-
     if (df.empty) | (df2.empty):
         raise PreventUpdate
-
     version = max(df['Datum_WF'].dropna().sum()).replace('-', '_')
     df = df[df[category[0:4] + '_' + version]]
-
     if df.empty:
         raise PreventUpdate
-
     fig_p, fig_OHW, fig_pie, table, stats = generate_graph(
         category, df, df2, df_tot)
 

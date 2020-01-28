@@ -86,12 +86,9 @@ def toggle_collapse_blazen(n, is_open):
 def generate_tabel_blazen(selected_category, filter_selectie):
     if selected_category is None:
         return [html.P()], True
-    # df = pd.read_csv(config.workflow_blazen_csv)
-    # df = filter(df, value)
     df = data_from_DB(filter_selectie)
     selected_category = selected_category.get('points')[0].get('label')
     df = df[df[selected_category[0:4]]]
-    # df = pick_category_blazen(selected_category, df)
     return make_tabel_blazen(df), False
 
 
@@ -100,8 +97,6 @@ def generate_tabel_blazen(selected_category, filter_selectie):
     [Input('checklist_workflow_blazen', 'value')]
 )
 def generate_taart_diagram(filter_selectie):
-    # df = pd.read_csv(config.workflow_blazen_csv)
-    # df = filter(df, value)
     df = data_from_DB(filter_selectie)
     figure = make_taartdiagram_blazen(df)
     return figure
@@ -112,7 +107,6 @@ def make_taartdiagram_blazen(df):
     layout_pie = copy.deepcopy(layout)
     donut = {}
     for cat in config.beschrijving_cat_blazen:
-        # df_ = pick_category_blazen(cat, df)
         df_ = df[df[cat[0:4]]]
         sum_ = -(df_['delta_1'].sum().astype('int64'))
         if sum_ > 0:
@@ -165,26 +159,6 @@ def make_tabel_blazen(df):
         }],
     ),
     return tabel
-
-# helper functions
-# @cache.memoize()
-# def pick_category_blazen(categorie, df):
-
-#     mask_cat1 = (
-#         (df['Goedgekeurd'] == 0) &
-#         (df['Aangeboden'] > 0)
-#     )
-#     mask_cat2 = df['delta_1'] < 0
-
-#     if categorie == config.beschrijving_cat_blazen[0]:
-#         return df[mask_cat1]
-#     elif categorie == config.beschrijving_cat_blazen[1]:
-#         return df[mask_cat2]
-
-# def filter(df, filters):
-#     for filter in filters:
-#         df = df[df['Hoe afgehecht'] != filter]
-#     return df
 
 
 @cache.memoize()
