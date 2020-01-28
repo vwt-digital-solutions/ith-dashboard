@@ -449,6 +449,7 @@ def download_excel():
 
     df = df[df[category[0:4] + '_' + version.replace('-', '_')]]
     df_table = filter_version(df, version)
+    df_table = df_table[df_table['OHW'] < 0]
     df_table['Beschrijving categorie'] = category
     df_table['Oplosactie'] = config.oplosactie[category]
     df_table = df_table.merge(df2.groupby('Project').agg(
@@ -480,6 +481,7 @@ def download_excel1():
     version = max(df['Datum_WF'].dropna().sum())
 
     df_table = filter_version(df, version)
+    df_table = df_table[df_table['OHW'] < 0]
     df_table = df_table.merge(df2.groupby('Project').agg(
         {'Extra werk': 'sum'}), left_on='Pnummer', right_on='Project', how='left').fillna(0)
     df_table[df_table['DP_aangeboden'] > 0]['Extra werk'] = 0
@@ -780,7 +782,9 @@ def processed_data(df, df2, df_tot, version, category):
     if category == 'global':
         donut = {}
         for cat in config.beschrijving_cat:
-            mOHW = df[df[cat[0:4] + '_' + version.replace('-', '_')]]['OHW_' + version.replace('-', '_')].sum()
+            mOHW = df[(df[cat[0:4] + '_' + version.replace('-', '_')]) &
+                      (df['OHW_' + version.replace('-', '_')] < 0)]['OHW_' + version.replace('-', '_')].sum()
+            print(mOHW)
             if mOHW != 0:
                 donut[cat] = -mOHW
 
@@ -793,7 +797,7 @@ def processed_data(df, df2, df_tot, version, category):
         OHW['Datum'] = df['Datum_WF'].iloc[0]
         OHW_t = []
         for date in set(df['Datum_WF'].dropna().sum()):
-            OHW_t += [df['OHW_' + date.replace('-', '_')].sum()]
+            OHW_t += [df[df['OHW_' + date.replace('-', '_')] < 0]['OHW_' + date.replace('-', '_')].sum()]
         OHW['OHW'] = OHW_t
         OHW.set_index('Datum', inplace=True)
         OHW = OHW['OHW']
@@ -820,12 +824,15 @@ def processed_data(df, df2, df_tot, version, category):
 
         OHW_stat = OHW[-1]
 
-        stats = {'0': str(len(df['Pnummer'])), '1': str(-OHW_stat), '2': str(int(df_table['Extra werk'].sum()))}
+        stats = {'0': str(len(df[df['OHW_' + date.replace('-', '_')] < 0])),
+                 '1': str(-OHW_stat),
+                 '2': str(int(df_table['Extra werk'].sum()))}
 
     else:
         donut = None
 
         df_table = filter_version(df, version)
+        df_table = df_table[df_table['OHW'] < 0]
         df_table['Beschrijving categorie'] = category
         df_table['Oplosactie'] = config.oplosactie[category]
         df_table = df_table.merge(df2.groupby('Project').agg(
@@ -837,7 +844,8 @@ def processed_data(df, df2, df_tot, version, category):
         OHW['Datum'] = df_tot['Datum_WF'].iloc[0]
         OHW_t = []
         for date in set(df['Datum_WF'].dropna().sum()):
-            OHW_t += [df_tot[df_tot[category[0:4] + '_' + date.replace('-', '_')]]['OHW_' + date.replace('-', '_')].sum()]
+            OHW_t += [df_tot[(df_tot[category[0:4] + '_' + date.replace('-', '_')]) &
+                             (df_tot['OHW_' + date.replace('-', '_')] < 0)]['OHW_' + date.replace('-', '_')].sum()]
         OHW['OHW'] = OHW_t
         OHW.set_index('Datum', inplace=True)
         OHW = OHW['OHW']
@@ -866,7 +874,10 @@ def processed_data(df, df2, df_tot, version, category):
 
         OHW_stat = OHW[-1]
 
-        stats = {'0': str(len(df['Pnummer'])), '1': str(-OHW_stat), '2': str(int(df_table['Extra werk'].sum()))}
+        stats = {'0': str(len(df[(df[category[0:4] + '_' + version.replace('-', '_')]) &
+                                 (df['OHW_' + version.replace('-', '_')] < 0)])),
+                 '1': str(-OHW_stat),
+                 '2': str(int(df_table['Extra werk'].sum()))}
 
     return gefactureerd, ingeschat, inkoop, revisie, OHW, stats, donut, df_table, pOHW, fac
 
