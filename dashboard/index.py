@@ -1,12 +1,13 @@
-from app import app
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
-from dash.dependencies import Input, Output
 import dash_html_components as html
-import geulen_graven
+import tabpaginas.geulen_graven as geulen_graven
+import tabpaginas.has as has
+import tabpaginas.blazen as blazen
+
+from app import app
 from collections import OrderedDict
-import has
-import blazen
+from dash.dependencies import Input, Output
 
 config_pages = OrderedDict(
     [

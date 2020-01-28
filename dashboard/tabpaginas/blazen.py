@@ -3,12 +3,13 @@ import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import config
 import os
-from google.cloud import firestore
 import pandas as pd
-from app import cache, app
 import copy
-from elements import table_styles
 import dash_table
+
+from app import cache, app
+from google.cloud import firestore
+from elements import table_styles
 from dash.dependencies import Input, Output, State
 
 

@@ -1,15 +1,16 @@
 import dash_html_components as html
-from app import app, cache
 import os
-from google.cloud import firestore
-from elements import table_styles
 import dash_table
 import dash_core_components as dcc
-from dash.dependencies import Input, Output, State
 import pandas as pd
 import config
 import copy
 import dash_bootstrap_components as dbc
+
+from app import app, cache
+from google.cloud import firestore
+from elements import table_styles
+from dash.dependencies import Input, Output, State
 
 # layout graphs
 layout = dict(
