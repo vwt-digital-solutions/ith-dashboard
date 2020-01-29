@@ -1,5 +1,4 @@
 import dash_html_components as html
-import os
 import dash_table
 import dash_core_components as dcc
 import pandas as pd
@@ -208,8 +207,6 @@ def make_taartdiagram_fiberconnect():
 
 @cache.memoize()
 def data_from_DB(filter_selectie):
-    gpath = '/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/vwt-d-gew1-ith-dashboard-aef62ff97387.json'
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gpath
     db = firestore.Client()
     p_ref = db.collection('Projecten_haswf')
     p_ref_fc = db.collection('Projecten_hasfc')
