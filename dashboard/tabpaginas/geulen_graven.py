@@ -1,6 +1,5 @@
 import copy
 import flask
-import os
 import io
 import config
 import datetime as dt
@@ -541,8 +540,6 @@ def download_excel2():
 # HELPER FUNCTIES
 @cache.memoize()
 def data_from_DB(filter_selectie):
-    gpath = '/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/vwt-d-gew1-ith-dashboard-aef62ff97387.json'
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gpath
     db = firestore.Client()
     p_ref = db.collection('Projecten_7')
     inkoop_ref = db.collection('Inkooporders_5')

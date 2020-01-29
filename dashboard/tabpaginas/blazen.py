@@ -2,7 +2,6 @@ import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import config
-import os
 import pandas as pd
 import copy
 import dash_table
@@ -164,8 +163,6 @@ def make_tabel_blazen(df):
 
 @cache.memoize()
 def data_from_DB(filter_selectie):
-    gpath = '/simplxr/corp/01_clients/16_vwt/03_data/VWT-Infra/vwt-d-gew1-ith-dashboard-aef62ff97387.json'
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gpath
     db = firestore.Client()
     p_ref = db.collection('Projecten_blazen')
 
