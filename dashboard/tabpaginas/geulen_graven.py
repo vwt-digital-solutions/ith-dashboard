@@ -723,25 +723,25 @@ def generate_graph(category, df, df2, df_tot):
             hoverinfo="skip",
             yaxis='y2'
         ),
-        dict(
-            type="line",
-            x=fac.index,
-            y=fac,
-            name="facturatie",
-            opacity=0.5,
-            hoverinfo="skip",
-        ),
-        dict(
-            type="line",
-            x=fac.index,
-            y=fac - OHW,
-            name="inkoop",
-            opacity=0.5,
-            hoverinfo="skip",
-        ),
+        # dict(
+        #     type="line",
+        #     x=fac.index,
+        #     y=fac,
+        #     name="facturatie",
+        #     opacity=0.5,
+        #     hoverinfo="skip",
+        # ),
+        # dict(
+        #     type="line",
+        #     x=fac.index,
+        #     y=fac - OHW,
+        #     name="inkoop",
+        #     opacity=0.5,
+        #     hoverinfo="skip",
+        # ),
     ]
     layout_OHW = copy.deepcopy(layout)
-    layout_OHW["title"] = "OHW, gefactureerd, ingekocht en aantal projecten OHW (rechter y-as) "
+    layout_OHW["title"] = category[0:4] + ": OHW (linker y-as) en aantal projecten OHW (rechter y-as) "
     layout_OHW["dragmode"] = "select"
     layout_OHW["showlegend"] = True
     layout_OHW["autosize"] = True
