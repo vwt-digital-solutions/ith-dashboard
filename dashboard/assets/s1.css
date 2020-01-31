@@ -269,7 +269,7 @@ blockquote {
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 a {
   color: #1eaedb;
-  text-decoration: underline;
+  /* text-decoration: underline; */
   cursor: pointer;
 }
 a:hover {
