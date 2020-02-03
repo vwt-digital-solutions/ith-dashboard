@@ -98,6 +98,7 @@ body {
   margin-right: 10px;
   margin-top: 30px;
 }
+
 #title {
   text-align: center;
 }
@@ -116,24 +117,8 @@ body {
   flex-direction: column;
 }
 
-#wells {
-  flex: 1;
-}
-
-#gas {
-  flex: 1;
-}
-
 #aggregate_data {
   align-items: center;
-}
-
-#oil {
-  flex: 1;
-}
-
-#water {
-  flex: 1;
 }
 
 #tripleContainer {
@@ -150,3 +135,9 @@ body {
   pointer-events: all;
   transform: translate(30px, 349px);
 }
+
+.navbar-brand {
+  font-size: 2rem;
+}
+
+
