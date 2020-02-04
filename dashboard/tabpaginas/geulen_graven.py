@@ -215,10 +215,6 @@ def get_body():
             ),
             html.Div(
                 [
-                    # html.Div(
-                    #         [dcc.Graph(id="Projecten_globaal_graph")],
-                    #         className="pretty_container column",
-                    # ),
                     html.Div(
                             [dcc.Graph(id="OHW_globaal_graph")],
                             className="pretty_container column",
@@ -301,10 +297,6 @@ def get_body():
                         ],
                         className="pretty_container column",
                     ),
-                    # html.Div(
-                    #     dcc.Graph(id="projecten_bakje_graph"),
-                    #     className="pretty_container column",
-                    # ),
                     html.Div(
                         dcc.Graph(id="OHW_bakje_graph"),
                         className="pretty_container column",
@@ -365,13 +357,12 @@ def update_text(data1, data2):
 
 # Globale grafieken
 @app.callback(
-    [
-        # Output("Projecten_globaal_graph", "figure"),
-        Output("OHW_globaal_graph", "figure"),
-        Output("pie_graph", "figure"),
-        Output("aggregate_data", "data")
+    [Output("OHW_globaal_graph", "figure"),
+     Output("pie_graph", "figure"),
+     Output("aggregate_data", "data")
      ],
-    [Input("checklist_filters", 'value')]
+    [Input("checklist_filters", 'value')
+     ]
 )
 def make_global_figures(filter_selectie):
     if filter_selectie is None:
@@ -380,19 +371,18 @@ def make_global_figures(filter_selectie):
     category = 'global'
     if df.empty | df2.empty:
         raise PreventUpdate
-    _, fig_OHW, fig_pie, table, stats = generate_graph(
-        category, df, df2, df_tot=None)
+    fig_OHW, fig_pie, _, stats = generate_graph(category, df, df2)
     return [fig_OHW, fig_pie, stats]
 
 
 @app.callback(
-    [
-        #  Output("projecten_bakje_graph", "figure"),
-        Output("OHW_bakje_graph", "figure"),
-        Output('status_table_ext', 'children'),
-        Output("aggregate_data2", "data")],
+    [Output("OHW_bakje_graph", "figure"),
+     Output('status_table_ext', 'children'),
+     Output("aggregate_data2", "data")
+     ],
     [Input("checklist_filters", 'value'),
-     Input("pie_graph", 'clickData')],
+     Input("pie_graph", 'clickData')
+     ]
 )
 def make_category_figures(filter_selectie, category):
     if filter_selectie is None:
@@ -402,30 +392,22 @@ def make_category_figures(filter_selectie, category):
     else:
         category = category.get('points')[0].get('label')
     df, df2 = data_from_DB(filter_selectie)
-    df_tot = df
     if (df.empty) | (df2.empty):
         raise PreventUpdate
-    version = max(df['Datum_WF'].dropna().sum()).replace('-', '_')
-    df = df[df[category[0:4] + '_' + version]]
-    if df.empty:
-        raise PreventUpdate
-    _, fig_OHW, fig_pie, table, stats = generate_graph(
-        category, df, df2, df_tot)
+    fig_OHW, _, table, stats = generate_graph(category, df, df2)
 
     return [fig_OHW, table, stats]
 
 
 # DOWNLOAD FUNCTIES
 @app.callback(
-    [
-        Output('download-link', 'href'),
-        Output('download-link1', 'href'),
-        Output('download-link2', 'href'),
-    ],
-    [
-        Input("checklist_filters", 'value'),
-        Input('pie_graph', 'clickData'),
-    ],
+    [Output('download-link', 'href'),
+     Output('download-link1', 'href'),
+     Output('download-link2', 'href'),
+     ],
+    [Input("checklist_filters", 'value'),
+     Input('pie_graph', 'clickData'),
+     ]
 )
 def update_link(filter_selectie, category):
     if filter_selectie is None:
@@ -446,17 +428,8 @@ def download_excel():
     category = flask.request.args.get('categorie')
     filter_selectie = flask.request.args.get('filters')
     df, df2 = data_from_DB(filter_selectie)
-    version = max(df['Datum_WF'].dropna().sum())
-
-    df = df[df[category[0:4] + '_' + version.replace('-', '_')]]
-    df_table = filter_version(df, version)
-    df_table = df_table[df_table['OHW'] < 0]
-    df_table['Beschrijving categorie'] = category
-    df_table['Oplosactie'] = config.oplosactie[category]
-    df_table = df_table.merge(df2.groupby('Project').agg(
-        {'Extra werk': 'sum'}), left_on='Pnummer', right_on='Project', how='left').fillna(0)
-    df_table[df_table['DP_aangeboden'] > 0]['Extra werk'] = 0
-    df_table = df_table[config.columns].sort_values(by='OHW', ascending=True)
+    version_r = max(df['Datum_WF'].dropna().sum()).replace('-', '_')
+    df_table = make_table(df, df2, version_r, category)
 
     # Convert df to excel
     strIO = io.BytesIO()
@@ -479,26 +452,8 @@ def download_excel():
 def download_excel1():
     filter_selectie = flask.request.args.get('filters')
     df, df2 = data_from_DB(filter_selectie)
-    version = max(df['Datum_WF'].dropna().sum())
-
-    df_table = filter_version(df, version)
-    df_table = df_table[df_table['OHW'] < 0]
-    df_table = df_table.merge(df2.groupby('Project').agg(
-        {'Extra werk': 'sum'}), left_on='Pnummer', right_on='Project', how='left').fillna(0)
-    df_table[df_table['DP_aangeboden'] > 0]['Extra werk'] = 0
-    col = [
-        "Bnummer",
-        "Pnummer",
-        "Projectstatus",
-        "Afgehecht",
-        "Aangeboden",
-        "Goedgekeurd",
-        "Gerealiseerd",
-        "Gefactureerd",
-        "OHW",
-        "Extra werk",
-    ]
-    df_table = df_table[col].sort_values(by='OHW', ascending=True)
+    version_r = max(df['Datum_WF'].dropna().sum()).replace('-', '_')
+    df_table = make_table(df, df2, version_r, category=None)
 
     # Convert DF
     strIO = io.BytesIO()
@@ -520,7 +475,8 @@ def download_excel1():
 def download_excel2():
     df, df2 = data_from_DB(filter_selectie=[])
     df_table = df2.merge(df[['Pnummer', 'DP_aangeboden']], left_on='Project', right_on='Pnummer', how='left')
-    df_table = df_table.drop(['Pnummer'], axis=1).fillna('-')
+    df_table = df_table.drop(['Pnummer'], axis=1).fillna('-').sort_values(by='Extra werk', ascending=False)
+
     # Convert DF
     strIO = io.BytesIO()
     excel_writer = pd.ExcelWriter(strIO, engine="xlsxwriter")
@@ -601,111 +557,11 @@ def data_from_DB(filter_selectie):
     return df, df2
 
 
-def generate_graph(category, df, df2, df_tot):
+def generate_graph(category, df, df2):
 
-    if category == 'global':
-        title = 'Projecten met OHW'
-        version = max(df['Datum_WF'].dropna().sum())
-        gefactureerd, ingeschat, inkoop, revisie, OHW, stats, donut, df_table, pOHW, fac = processed_data(
-            df, df2, df_tot, version, category)
+    OHW, pOHW, donut, df_table, stats = processed_data(df, df2, category)
 
-        data_pie = [
-            dict(
-                type="pie",
-                labels=list(donut.keys()),
-                values=list(donut.values()),
-                hoverinfo="percent",
-                textinfo="value",
-                hole=0.5,
-                marker=dict(colors=['#003f5c', '#374c80', '#7a5195',
-                                    '#bc5090',  '#ef5675']),
-                domain={"x": [0, 1], "y": [0.30, 1]},
-                sort=False
-            )
-        ]
-        layout_pie = copy.deepcopy(layout)
-        layout_pie["title"] = "Categorieen OHW (aantal meters " + dt.datetime.now().strftime('%d-%m-%y') + " ):"
-        layout_pie["clickmode"] = "event+select"
-        layout_pie["font"] = dict(color="#777777")
-        layout_pie["legend"] = dict(
-            font=dict(color="#777777", size="14"),
-            orientation="v",
-            bgcolor="rgba(0,0,0,0)",
-            traceorder='normal',
-            itemclick=True,
-            xanchor='bottom'
-        )
-        layout_pie["showlegend"] = True
-        layout_pie["height"] = 500
-        figure_pie = dict(data=data_pie, layout=layout_pie)
-
-        table = html.P()
-
-    else:
-        title = category
-        version = max(df['Datum_WF'].dropna().sum())
-        gefactureerd, ingeschat, inkoop, revisie, OHW, stats, donut, df_table, pOHW, fac = processed_data(
-            df, df2, df_tot, version, category)
-
-        figure_pie = None
-
-        table = dash_table.DataTable(
-            columns=[{"name": i, "id": i} for i in df_table.columns],
-            data=df_table.to_dict("rows"),
-            style_table={'overflowX': 'auto'},
-            style_header=table_styles['header'],
-            style_cell=table_styles['cell']['action'],
-            style_filter=table_styles['filter'],
-            css=[{
-                'selector': 'table',
-                'rule': 'width: 100%;'
-            }],
-        )
-
-    data_projects = [
-        dict(
-            type="line",
-            x=inkoop.index,
-            y=inkoop,
-            name="Ingekocht",
-            opacity=0.5,
-            hoverinfo="skip",
-        ),
-        dict(
-            type="line",
-            x=revisie.index,
-            y=revisie,
-            name="deelrevisies Totaal",
-            opacity=0.5,
-            hoverinfo="skip",
-        ),
-        dict(
-            type="line",
-            mode='markers',
-            marker=dict(size=12, symbol='triangle-left'),
-            x=[gefactureerd.index[-1]],
-            y=[gefactureerd['Gefactureerd'][-1]],
-            name="Gefactureerd Totaal",
-        ),
-        dict(
-            type="line",
-            mode='markers',
-            marker=dict(size=12, symbol='triangle-left'),
-            x=[ingeschat.index[-1]],
-            y=[ingeschat['Aangeboden'][-1]],
-            name="Ingeschat",
-        ),
-    ]
-    layout_projects = copy.deepcopy(layout)
-    layout_projects["title"] = title
-    layout_projects["dragmode"] = "select"
-    layout_projects["showlegend"] = True
-    layout_projects["autosize"] = True
-    layout_projects["yaxis"] = dict(title='[m]')
-    layout_projects["line"] = dict(dash='dash')
-    figure_projects = dict(data=data_projects, layout=layout_projects)
-
-    data_OHW = [
+    data_history_OHW = [
         dict(
             type="line",
             x=OHW.index,
@@ -723,22 +579,6 @@ def generate_graph(category, df, df2, df_tot):
             hoverinfo="skip",
             yaxis='y2'
         ),
-        # dict(
-        #     type="line",
-        #     x=fac.index,
-        #     y=fac,
-        #     name="facturatie",
-        #     opacity=0.5,
-        #     hoverinfo="skip",
-        # ),
-        # dict(
-        #     type="line",
-        #     x=fac.index,
-        #     y=fac - OHW,
-        #     name="inkoop",
-        #     opacity=0.5,
-        #     hoverinfo="skip",
-        # ),
     ]
     layout_OHW = copy.deepcopy(layout)
     layout_OHW["title"] = category[0:4] + ": OHW (linker y-as) en aantal projecten OHW (rechter y-as) "
@@ -747,159 +587,153 @@ def generate_graph(category, df, df2, df_tot):
     layout_OHW["autosize"] = True
     layout_OHW["yaxis"] = dict(title='[m]')
     layout_OHW['yaxis2'] = dict(side='right', overlaying='y')
-    figure_OHW = dict(data=data_OHW, layout=layout_OHW)
+    figure_OHW = dict(data=data_history_OHW, layout=layout_OHW)
 
-    return figure_projects, figure_OHW, figure_pie, table, stats
+    if donut is not None:
+        data_pie = [
+            dict(
+                type="pie",
+                labels=list(donut.keys()),
+                values=list(donut.values()),
+                hoverinfo="percent",
+                textinfo="value",
+                hole=0.5,
+                marker=dict(colors=['#003f5c', '#374c80', '#7a5195',
+                                    '#bc5090',  '#ef5675']),
+                domain={"x": [0, 1], "y": [0.30, 1]},
+                sort=False
+            )
+        ]
+        layout_pie = copy.deepcopy(layout)
+        layout_pie["title"] = "Aantal meter OHW per categorie:"
+        layout_pie["clickmode"] = "event+select"
+        layout_pie["font"] = dict(color="#777777")
+        layout_pie["legend"] = dict(
+            font=dict(color="#777777", size="14"),
+            orientation="v",
+            bgcolor="rgba(0,0,0,0)",
+            traceorder='normal',
+            itemclick=True,
+            xanchor='bottom'
+        )
+        layout_pie["showlegend"] = True
+        layout_pie["height"] = 500
+        donut = dict(data=data_pie, layout=layout_pie)
+
+    if df_table is not None:
+        df_table = dash_table.DataTable(
+            columns=[{"name": i, "id": i} for i in df_table.columns],
+            data=df_table.to_dict("rows"),
+            style_table={'overflowX': 'auto'},
+            style_header=table_styles['header'],
+            style_cell=table_styles['cell']['action'],
+            style_filter=table_styles['filter'],
+            css=[{
+                'selector': 'table',
+                'rule': 'width: 100%;'
+            }],
+        )
+
+    return figure_OHW, donut, df_table, stats
 
 
-def processed_data(df, df2, df_tot, version, category):
-    gefactureerd = pd.DataFrame()
-    gefactureerd['Datum'] = df['Datum_WF'].sum()
-    gefactureerd['Gefactureerd'] = df['Gefactureerd'].sum()
-    gefactureerd = gefactureerd.groupby(['Datum']).agg({'Gefactureerd': 'sum'})
-    gefactureerd.index = pd.to_datetime(gefactureerd.index)
+def processed_data(df, df2, category):
 
-    ingeschat = pd.DataFrame()
-    ingeschat['Datum'] = df['Datum_WF'].sum()
-    ingeschat['Aangeboden'] = df['Aangeboden'].sum()
-    ingeschat = ingeschat.groupby(['Datum']).agg({'Aangeboden': 'sum'})
-    ingeschat.index = pd.to_datetime(ingeschat.index)
+    dates = sorted(list(set(df['Datum_WF'].dropna().sum())))
+    version = max(dates)
+    version_r = version.replace('-', '_')
 
-    inkoop = pd.DataFrame()
-    inkoop['Datum'] = df['LEVERDATUM_ONTVANGST'].sum()
-    inkoop['Ontvangen'] = df['Ontvangen'].sum()
-    inkoop = inkoop.groupby(['Datum']).agg({'Ontvangen': 'sum'})
-    inkoop.index = pd.to_datetime(inkoop.index)
-    inkoop = inkoop['Ontvangen'].cumsum().asfreq('D', 'ffill')
+    OHW = pd.DataFrame()
+    OHW_t = []
 
-    revisie = pd.DataFrame()
-    revisie['Datum'] = df['Datum_R'].dropna().sum()
-    revisie['Revisie'] = df['Revisie'].dropna().sum()
-    revisie = revisie.groupby(['Datum']).agg({'Revisie': 'sum'})
-    revisie.index = pd.to_datetime(revisie.index)
-    revisie = revisie.sort_index()
-    revisie = revisie['Revisie'].cumsum().asfreq('D', 'ffill')
+    pOHW = pd.DataFrame()
+    pOHW_t = []
 
     if category == 'global':
         donut = {}
         for cat in config.beschrijving_cat:
-            mOHW = df[(df[cat[0:4] + '_' + version.replace('-', '_')]) &
-                      (df['OHW_' + version.replace('-', '_')] < 0)]['OHW_' + version.replace('-', '_')].sum()
+            mask = (df[cat[0:4] + '_' + version_r]) & (df['OHW_' + version_r] < 0)
+            mOHW = round(df[mask]['OHW_' + version_r].sum())
             if mOHW != 0:
                 donut[cat] = -mOHW
 
-        df_table = filter_version(df, version)
-        df_table = df_table.merge(df2.groupby('Project').agg(
-            {'Extra werk': 'sum'}), left_on='Pnummer', right_on='Project', how='left').fillna(0)
-        df_table[df_table['DP_aangeboden'] > 0]['Extra werk'] = 0
+        df_table = None
 
-        OHW = pd.DataFrame()
-        OHW['Datum'] = df['Datum_WF'].iloc[0]
-        OHW_t = []
-        for date in set(df['Datum_WF'].dropna().sum()):
-            OHW_t += [df[df['OHW_' + date.replace('-', '_')] < 0]['OHW_' + date.replace('-', '_')].sum()]
-        OHW['OHW'] = OHW_t
-        OHW.set_index('Datum', inplace=True)
-        OHW = OHW['OHW']
+        extrawerk = int(make_table(df, df2, version_r, category=None)['Extra werk'].sum())
 
-        fac = pd.DataFrame()
-        fac['Datum'] = df['Datum_WF'].iloc[0]
-        fac_t = []
-        i = 0
-        for date in set(df['Datum_WF'].dropna().sum()):
-            fac_t += [filter_fac(df[df['OHW_' + date.replace('-', '_')] < 0], i)]
-            i += 1
-        fac['Gefactureerd'] = fac_t
-        fac.set_index('Datum', inplace=True)
-        fac = fac['Gefactureerd']
-
-        pOHW = pd.DataFrame()
-        pOHW['Datum'] = df['Datum_WF'].iloc[0]
-        pOHW_t = []
-        for date in set(df['Datum_WF'].dropna().sum()):
-            pOHW_t += [df[df['OHW_' + date.replace('-', '_')] < 0]['OHW_' + date.replace('-', '_')].count()]
-        pOHW['pOHW'] = pOHW_t
-        pOHW.set_index('Datum', inplace=True)
-        pOHW = pOHW['pOHW']
-
-        OHW_stat = OHW[-1]
-
-        stats = {'0': str(len(df[df['OHW_' + version.replace('-', '_')] < 0])),
-                 '1': str(-OHW_stat),
-                 '2': str(int(df_table['Extra werk'].sum()))}
+        for date in dates:
+            date_r = date.replace('-', '_')
+            mask = (df['OHW_' + date_r] < 0)
+            OHW_t += [df[mask]['OHW_' + date_r].sum()]
+            pOHW_t += [df[mask]['OHW_' + date_r].count()]
 
     else:
         donut = None
 
-        df_table = filter_version(df, version)
-        df_table = df_table[df_table['OHW'] < 0]
-        df_table['Beschrijving categorie'] = category
-        df_table['Oplosactie'] = config.oplosactie[category]
-        df_table = df_table.merge(df2.groupby('Project').agg(
-            {'Extra werk': 'sum'}), left_on='Pnummer', right_on='Project', how='left').fillna(0)
-        df_table[df_table['DP_aangeboden'] > 0]['Extra werk'] = 0
-        df_table = df_table[config.columns].sort_values(by='OHW', ascending=True)
+        df_table = make_table(df, df2, version_r, category)
 
-        OHW = pd.DataFrame()
-        OHW['Datum'] = df_tot['Datum_WF'].iloc[0]
-        OHW_t = []
-        for date in set(df['Datum_WF'].dropna().sum()):
-            OHW_t += [df_tot[(df_tot[category[0:4] + '_' + date.replace('-', '_')]) &
-                             (df_tot['OHW_' + date.replace('-', '_')] < 0)]['OHW_' + date.replace('-', '_')].sum()]
-        OHW['OHW'] = OHW_t
-        OHW.set_index('Datum', inplace=True)
-        OHW = OHW['OHW']
+        extrawerk = int(df_table['Extra werk'].sum())
 
-        fac = pd.DataFrame()
-        fac['Datum'] = df['Datum_WF'].iloc[0]
-        fac_t = []
-        i = 0
-        for date in set(df['Datum_WF'].dropna().sum()):
-            fac_t += [filter_fac(df[(df_tot[category[0:4] + '_' + date.replace('-', '_')]) &
-                                    (df['OHW_' + date.replace('-', '_')] < 0)], i)]
-            i += 1
-        fac['Gefactureerd'] = fac_t
-        fac.set_index('Datum', inplace=True)
-        fac = fac['Gefactureerd']
+        for date in dates:
+            date_r = date.replace('-', '_')
+            mask = (df[category[0:4] + '_' + date_r]) & (df['OHW_' + date_r] < 0)
+            OHW_t += [df[mask]['OHW_' + date_r].sum()]
+            pOHW_t += [df[mask]['OHW_' + date_r].count()]
 
-        pOHW = pd.DataFrame()
-        pOHW['Datum'] = df['Datum_WF'].iloc[0]
-        pOHW_t = []
-        for date in set(df['Datum_WF'].dropna().sum()):
-            pOHW_t += [df[(df_tot[category[0:4] + '_' + date.replace('-', '_')]) &
-                          (df['OHW_' + date.replace('-', '_')] < 0)]['OHW_' + date.replace('-', '_')].count()]
-        pOHW['pOHW'] = pOHW_t
-        pOHW.set_index('Datum', inplace=True)
-        pOHW = pOHW['pOHW']
+    OHW['OHW'] = OHW_t
+    OHW['Datum'] = pd.to_datetime(list(dates))
+    OHW.set_index('Datum', inplace=True)
+    OHW = OHW['OHW']
 
-        OHW_stat = OHW[-1]
+    pOHW['pOHW'] = pOHW_t
+    pOHW['Datum'] = pd.to_datetime(list(dates))
+    pOHW.set_index('Datum', inplace=True)
+    pOHW = pOHW['pOHW']
 
-        stats = {'0': str(len(df[(df[category[0:4] + '_' + version.replace('-', '_')]) &
-                                 (df['OHW_' + version.replace('-', '_')] < 0)])),
-                 '1': str(-OHW_stat),
-                 '2': str(int(df_table['Extra werk'].sum()))}
+    stats = {'0': str(round(pOHW[pOHW.index.max()])),
+             '1': str(round(-OHW[OHW.index.max()])),
+             '2': str(round(extrawerk))}
 
-    return gefactureerd, ingeschat, inkoop, revisie, OHW, stats, donut, df_table, pOHW, fac
+    return OHW, pOHW, donut, df_table, stats
 
 
-def filter_version(df, version):
+def make_table(df, df2, version_r, category):
+
+    if category is not None:
+        mask = (df[category[0:4] + '_' + version_r]) & (df['OHW_' + version_r] < 0)
+    else:
+        mask = (df['OHW_' + version_r] < 0)
+
     dataframe = []
-    for i in df.index:
-        if df['Datum_WF'][i][-1] == version:
+    for i in df[mask].index:
+        if df[mask]['Datum_WF'][i][-1] == version_r.replace('_', '-'):
             rec_table = {}
-            rec_table['Datum_WF'] = version
-            rec_table['Gefactureerd'] = df['Gefactureerd'][i][-1]
-            rec_table['Aangeboden'] = df['Aangeboden'][i][-1]
-            rec_table['Gerealiseerd'] = df['Gerealiseerd'][i][-1]
-            rec_table['Goedgekeurd'] = df['Goedgekeurd'][i][-1]
-            rec_table['Bnummer'] = df['Bnummer'][i]
-            rec_table['Pnummer'] = df['Pnummer'][i]
-            rec_table['Projectstatus'] = df['Projectstatus'][i]
-            rec_table['Afgehecht'] = df['Afgehecht'][i]
-            rec_table['OHW'] = df['OHW_' + version.replace('-', '_')][i]
-            rec_table['DP_aangeboden'] = df['DP_aangeboden'][i]
+            rec_table['Datum_WF'] = version_r.replace('_', '-')
+            rec_table['Gefactureerd'] = round(df[mask]['Gefactureerd'][i][-1])
+            rec_table['Aangeboden'] = round(df[mask]['Aangeboden'][i][-1])
+            rec_table['Gerealiseerd'] = round(df[mask]['Gerealiseerd'][i][-1])
+            rec_table['Goedgekeurd'] = round(df[mask]['Goedgekeurd'][i][-1])
+            rec_table['Bnummer'] = df[mask]['Bnummer'][i]
+            rec_table['Pnummer'] = df[mask]['Pnummer'][i]
+            rec_table['Projectstatus'] = df[mask]['Projectstatus'][i]
+            rec_table['Afgehecht'] = df[mask]['Afgehecht'][i]
+            rec_table['OHW'] = round(df[mask]['OHW_' + version_r][i])
+            rec_table['DP_aangeboden'] = df[mask]['DP_aangeboden'][i]
+            rec_table['Ingekocht'] = round(sum(df[mask]['Ontvangen'][i]))
             dataframe += [rec_table]
     df_table = pd.DataFrame(dataframe)
+
+    df_table = df_table[df_table['OHW'] < 0]
+    df_table = df_table.merge(df2.groupby('Project').agg(
+        {'Extra werk': 'sum'}), left_on='Pnummer', right_on='Project', how='left').fillna(0)
+    df_table.loc[df_table['DP_aangeboden'] > 0, ('Extra werk')] = 0
+    col_extra = []
+    if category is not None:
+        df_table['Beschrijving categorie'] = category
+        df_table['Oplosactie'] = config.oplosactie[category]
+        col_extra = ['Beschrijving categorie', 'Oplosactie']
+
+    df_table = df_table[config.columns + col_extra].sort_values(by='OHW', ascending=True)
 
     return df_table
 
