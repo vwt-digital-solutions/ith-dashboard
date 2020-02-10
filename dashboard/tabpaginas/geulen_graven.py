@@ -709,7 +709,9 @@ def make_table(df, df2, version_r, category):
         if df[mask]['Datum_WF'][i][-1] == version_r.replace('_', '-'):
             rec_table = {}
             rec_table['Datum_WF'] = version_r.replace('_', '-')
-            rec_table['Gefactureerd'] = round(df[mask]['Gefactureerd'][i][-1])
+            rec_table['Openstaand'] = round(df[mask]['Openstaand'][i][-1])
+            rec_table['Gefactureerd'] = (round(df[mask]['Gefactureerd'][i][-1])
+                                         - rec_table['Openstaand'])
             rec_table['Aangeboden'] = round(df[mask]['Aangeboden'][i][-1])
             rec_table['Gerealiseerd'] = round(df[mask]['Gerealiseerd'][i][-1])
             rec_table['Goedgekeurd'] = round(df[mask]['Goedgekeurd'][i][-1])
