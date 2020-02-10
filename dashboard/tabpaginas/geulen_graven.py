@@ -8,6 +8,7 @@ import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_table
+import ast
 from flask import send_file
 from google.cloud import firestore
 from dash.dependencies import Input, Output, State
@@ -83,7 +84,7 @@ def get_body():
                         [
                             html.Div(
                                 [
-                                    html.P("Filters:"),
+                                    html.P("Presets:"),
                                     dcc.Dropdown(
                                         options=[
                                             {'label': 'Vanaf nul punt [NL]',
@@ -103,6 +104,28 @@ def get_body():
                                         ],
                                         id='checklist_filters',
                                         value=['AF_1', 'AF_2', 'AF_3'],
+                                        multi=True,
+                                    ),
+                                ],
+                                id="filter_container",
+                                className="pretty_container_title columns",
+                            ),
+                            html.Div(
+                                [
+                                    html.P("Filter regio:"),
+                                    dcc.Dropdown(
+                                        options=[
+                                            {'label': "'t Harde",
+                                                'value': '410.0'},
+                                            {'label': "Uden",
+                                                'value': '420.0'},
+                                            {'label': "Papendrecht",
+                                                'value': '430.0'},
+                                            {'label': "Omzetten",
+                                                'value': '000'},
+                                        ],
+                                        id='checklist_filters2',
+                                        value=['410.0', '420.0', '430.0'],
                                         multi=True,
                                     ),
                                 ],
@@ -361,13 +384,15 @@ def update_text(data1, data2):
      Output("pie_graph", "figure"),
      Output("aggregate_data", "data")
      ],
-    [Input("checklist_filters", 'value')
+    [Input("checklist_filters", 'value'),
+     Input("checklist_filters2", 'value')
      ]
 )
-def make_global_figures(filter_selectie):
+def make_global_figures(preset_selectie, filter_selectie):
     if filter_selectie is None:
         raise PreventUpdate
-    df, df2 = data_from_DB(filter_selectie)
+    df, df2 = data_from_DB(preset_selectie)
+    df = df[df['RegioVWT'].isin(filter_selectie)]
     category = 'global'
     if df.empty | df2.empty:
         raise PreventUpdate
@@ -381,17 +406,19 @@ def make_global_figures(filter_selectie):
      Output("aggregate_data2", "data")
      ],
     [Input("checklist_filters", 'value'),
-     Input("pie_graph", 'clickData')
+     Input("pie_graph", 'clickData'),
+     Input("checklist_filters2", 'value'),
      ]
 )
-def make_category_figures(filter_selectie, category):
-    if filter_selectie is None:
+def make_category_figures(preset_selectie, category, filter_selectie):
+    if preset_selectie is None:
         raise PreventUpdate
     if category is None:
         category = config.beschrijving_cat[0]
     else:
         category = category.get('points')[0].get('label')
-    df, df2 = data_from_DB(filter_selectie)
+    df, df2 = data_from_DB(preset_selectie)
+    df = df[df['RegioVWT'].isin(filter_selectie)]
     if (df.empty) | (df2.empty):
         raise PreventUpdate
     fig_OHW, _, table, stats = generate_graph(category, df, df2)
@@ -403,31 +430,33 @@ def make_category_figures(filter_selectie, category):
 @app.callback(
     [Output('download-link', 'href'),
      Output('download-link1', 'href'),
-     Output('download-link2', 'href'),
      ],
     [Input("checklist_filters", 'value'),
      Input('pie_graph', 'clickData'),
+     Input("checklist_filters2", 'value'),
      ]
 )
-def update_link(filter_selectie, category):
-    if filter_selectie is None:
+def update_link(preset_selectie, category, filter_selectie):
+    if preset_selectie is None:
         raise PreventUpdate
     if category is None:
         cat = config.beschrijving_cat[0]
     else:
         cat = category.get('points')[0].get('label')
 
-    return ['''/download_excel?categorie={}&filters={}'''.format(
-            cat, filter_selectie),
-            '/download_excel1?filters={}'.format(filter_selectie),
-            '/download_excel2?filters={}'.format(filter_selectie)]
+    return ['''/download_excel?categorie={}&preset={}&filters={}'''.format(
+            cat, preset_selectie, filter_selectie),
+            '/download_excel1?preset={}&filters={}'.format(preset_selectie, filter_selectie)
+            ]
 
 # download categorie
 @app.server.route('/download_excel')
 def download_excel():
     category = flask.request.args.get('categorie')
-    filter_selectie = flask.request.args.get('filters')
-    df, df2 = data_from_DB(filter_selectie)
+    preset_selectie = flask.request.args.get('preset')
+    filter_selectie = ast.literal_eval(flask.request.args.get('filters'))
+    df, df2 = data_from_DB(preset_selectie)
+    df = df[df['RegioVWT'].isin(filter_selectie)]
     version_r = max(df['Datum_WF'].dropna().sum()).replace('-', '_')
     df_table = make_table(df, df2, version_r, category)
 
@@ -450,8 +479,10 @@ def download_excel():
 # download volledig OHW frame
 @app.server.route('/download_excel1')
 def download_excel1():
-    filter_selectie = flask.request.args.get('filters')
-    df, df2 = data_from_DB(filter_selectie)
+    preset_selectie = flask.request.args.get('preset')
+    filter_selectie = ast.literal_eval(flask.request.args.get('filters'))
+    df, df2 = data_from_DB(preset_selectie)
+    df = df[df['RegioVWT'].isin(filter_selectie)]
     version_r = max(df['Datum_WF'].dropna().sum()).replace('-', '_')
     df_table = make_table(df, df2, version_r, category=None)
 
@@ -542,6 +573,7 @@ def data_from_DB(filter_selectie):
         dataframe = get_dataframe(docs, dataframe)
     df = pd.DataFrame(dataframe)
     df = df.fillna(False)
+    df.loc[~df['RegioVWT'].isin(['410.0', '420.0', '430.0']), ('RegioVWT')] = '000'
 
     docs = inkoop_ref.where('EW', '==', True).where('DP', '==', False).where('Behandeld', '==', False).stream()
     dataframe2 = []
@@ -719,6 +751,7 @@ def make_table(df, df2, version_r, category):
             rec_table['Pnummer'] = df[mask]['Pnummer'][i]
             rec_table['Projectstatus'] = df[mask]['Projectstatus'][i]
             rec_table['Afgehecht'] = df[mask]['Afgehecht'][i]
+            rec_table['RegioVWT'] = df[mask]['RegioVWT'][i]
             rec_table['OHW'] = round(df[mask]['OHW_' + version_r][i])
             rec_table['DP_aangeboden'] = df[mask]['DP_aangeboden'][i]
             rec_table['Ingekocht'] = round(sum(df[mask]['Ontvangen'][i]))
