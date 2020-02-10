@@ -543,7 +543,7 @@ def data_from_DB(filter_selectie):
     df = pd.DataFrame(dataframe)
     df = df.fillna(False)
 
-    docs = inkoop_ref.where('EW', '==', True).where('DP', '==', False).stream()
+    docs = inkoop_ref.where('EW', '==', True).where('DP', '==', False).where('Behandeld', '==', False).stream()
     dataframe2 = []
     for doc in docs:
         inkoopid = doc.id
