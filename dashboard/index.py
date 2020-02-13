@@ -4,6 +4,8 @@ import dash_html_components as html
 import tabpaginas.geulen_graven as geulen_graven
 import tabpaginas.has as has
 import tabpaginas.blazen as blazen
+import tabpaginas.DP as DP
+import tabpaginas.lades as lades
 
 from app import app
 from collections import OrderedDict
@@ -25,6 +27,16 @@ config_pages = OrderedDict(
             'name': 'Blazen',
             'link': ['/blazen', '/blazen/'],
             'body': blazen
+        }),
+        ('DP', {
+            'name': 'DP',
+            'link': ['/DP', '/DP/'],
+            'body': DP
+        }),
+        ('lades', {
+            'name': 'lades',
+            'link': ['/lades', '/lades/'],
+            'body': lades
         })
     ]
 )
@@ -96,7 +108,10 @@ def display_page(pathname):
         return [get_navbar(pathname), has.get_body()]
     if pathname == '/blazen':
         return [get_navbar(pathname), blazen.get_body()]
-
+    if pathname == '/DP':
+        return [get_navbar(pathname), DP.get_body()]
+    if pathname == '/lades':
+        return [get_navbar(pathname), lades.get_body()]
     return [get_navbar(pathname), html.P('''deze pagina bestaat niet, druk op vorige
                    of een van de paginas in het menu hierboven''')]
 
