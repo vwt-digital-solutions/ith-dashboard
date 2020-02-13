@@ -208,26 +208,18 @@ def get_body():
                         [
                             html.Div(
                                 [
-                                    html.H6(id="info_globaal_0"),
+                                    html.H6(id="dp_info_globaal_0"),
                                     html.P("Aantal projecten met OHW totaal")
                                 ],
-                                id="info_globaal_container0",
+                                id="dp_info_globaal_container0",
                                 className="pretty_container 3 columns",
                             ),
                             html.Div(
                                 [
-                                    html.H6(id="info_globaal_1"),
-                                    html.P("Aantal meter OHW totaal")
+                                    html.H6(id="dp_info_globaal_1"),
+                                    html.P("Aantal distributiepunten OHW totaal")
                                 ],
-                                id="info_globaal_container1",
-                                className="pretty_container 3 columns",
-                            ),
-                            html.Div(
-                                [
-                                    html.H6(id="info_globaal_2"),
-                                    html.P("Aantal meter extra werk totaal")
-                                ],
-                                id="info_globaal_container2",
+                                id="dp_info_globaal_container1",
                                 className="pretty_container 3 columns",
                             ),
                         ],
@@ -278,14 +270,7 @@ def get_body():
                             html.Div(
                                 [
                                     html.H6(id="info_bakje_1"),
-                                    html.P("Aantal meter OHW in categorie")
-                                ],
-                                className="pretty_container 3 columns",
-                            ),
-                            html.Div(
-                                [
-                                    html.H6(id="info_bakje_2"),
-                                    html.P("""Aantal meter extra werk in categorie""")
+                                    html.P("Aantal distributiepunten OHW in categorie")
                                 ],
                                 className="pretty_container 3 columns",
                             ),
@@ -337,3 +322,122 @@ def get_body():
         style={"display": "flex", "flex-direction": "column"},
     )
     return page
+
+# CALBACK FUNCTIONS
+# Informatie button
+@app.callback(
+    Output("uitleg_collapse_DP", "hidden"),
+    [Input("uitleg_button", "n_clicks")],
+    [State("uitleg_collapse_DP", "hidden")],
+)
+def toggle_collapse_DP(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
+
+# Info containers
+@app.callback(
+    [
+        Output("dp_info_globaal_0", "children"),
+        Output("dp_info_globaal_1", "children"),
+        Output("dp_info_bakje_0", "children"),
+        Output("dp_info_bakje_1", "children"),
+    ],
+    [
+        Input("aggregate_data", "data"),
+        Input("aggregate_data2", "data")
+    ],
+)
+def update_text(data1, data2):
+    return [
+        data1.get('0') + " projecten",
+        data1.get('1') + " distributiepunten",
+        data2.get('0') + " projecten",
+        data2.get('1') + " distributiepunten",
+    ]
+
+# Globale grafieken
+@app.callback(
+    [Output("OHW_globaal_graph_DP", "figure"),
+     Output("pie_graph_DP", "figure"),
+     Output("aggregate_data_DP", "data")
+     ],
+    [Input("checklist_filters", 'value'),
+     Input("checklist_filters2", 'value')
+     ]
+)
+def make_global_figures(preset_selectie, filter_selectie):
+    if filter_selectie is None:
+        raise PreventUpdate
+    df, df2 = data_from_DB_DP(preset_selectie)
+    df = df[df['RegioVWT'].isin(filter_selectie)]
+    category = 'global'
+    if df.empty | df2.empty:
+        raise PreventUpdate
+    fig_OHW_DP, fig_pie_DP, _, stats = generate_graph(category, df, df2)
+    return [fig_OHW_DP, fig_pie_DP, stats]
+
+# HELPER FUNCTIES
+@cache.memoize()
+def data_from_DB_DP(filter_selectie):
+    db = firestore.Client()
+    p_ref = db.collection('Projecten_7')
+    inkoop_ref = db.collection('Inkooporders_5')
+
+    def get_dataframe(docs, dataframe):
+        for doc in docs:
+            Pnummer = doc.id
+            doc = doc.to_dict()
+            doc['Pnummer'] = Pnummer
+            dataframe += [doc]
+        return dataframe
+
+    dataframe = []
+    if not ('NL' in filter_selectie):
+        docs = p_ref.where('OHW_ever', '==', True).where('Afgehecht', '==', 'niet afgehecht').stream()
+        dataframe = get_dataframe(docs, dataframe)
+        if not ('AF_1' in filter_selectie):
+            docs = p_ref.where('OHW_ever', '==', True).where('Afgehecht', '==', 'Administratief Afhechting').stream()
+            dataframe = get_dataframe(docs, dataframe)
+        if not ('AF_2' in filter_selectie):
+            docs = p_ref.where('OHW_ever', '==', True).where('Afgehecht', '==', 'Berekening restwerkzaamheden').stream()
+            dataframe = get_dataframe(docs, dataframe)
+        if not ('AF_3' in filter_selectie):
+            docs = p_ref.where('OHW_ever', '==', True).where('Afgehecht', '==', 'Bis Gereed').stream()
+            dataframe = get_dataframe(docs, dataframe)
+    elif ('NL' in filter_selectie):
+        docs = p_ref.where('OHW_ever', '==', True).where(
+            'Afgehecht', '==', 'niet afgehecht').where('nullijn', '==', False).stream()
+        dataframe = get_dataframe(docs, dataframe)
+        if not ('AF_1' in filter_selectie):
+            docs = p_ref.where('OHW_ever', '==', True).where(
+                'Afgehecht', '==', 'Administratief Afhechting').where('nullijn', '==', False).stream()
+            dataframe = get_dataframe(docs, dataframe)
+        if not ('AF_2' in filter_selectie):
+            docs = p_ref.where('OHW_ever', '==', True).where(
+                'Afgehecht', '==', 'Berekening restwerkzaamheden').where('nullijn', '==', False).stream()
+            dataframe = get_dataframe(docs, dataframe)
+        if not ('AF_3' in filter_selectie):
+            docs = p_ref.where('OHW_ever', '==', True).where(
+                'Afgehecht', '==', 'Bis Gereed').where('nullijn', '==', False).stream()
+            dataframe = get_dataframe(docs, dataframe)
+    else:
+        docs = p_ref.where('OHW_ever', '==', True).stream()
+        dataframe = get_dataframe(docs, dataframe)
+    df = pd.DataFrame(dataframe)
+    df = df.fillna(False)
+    df.loc[~df['RegioVWT'].isin(['410.0', '420.0', '430.0']), ('RegioVWT')] = '000'
+
+    docs = inkoop_ref.where('EW', '==', True).where('DP', '==', False).where('Behandeld', '==', False).stream()
+    dataframe2 = []
+    for doc in docs:
+        inkoopid = doc.id
+        doc = doc.to_dict()
+        for key in doc['Ontvangen']:
+            dataframe2 += [{'Project': key,
+                            'Extra werk': doc['Ontvangen'][key],
+                            'Inkooporder': inkoopid}]
+    df2 = pd.DataFrame(dataframe2)
+
+    return df, df2
