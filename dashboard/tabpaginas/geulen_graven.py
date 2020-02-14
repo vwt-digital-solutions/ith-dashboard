@@ -458,7 +458,7 @@ def download_excel():
     df, df2 = data_from_DB(preset_selectie)
     df = df[df['RegioVWT'].isin(filter_selectie)]
     version_r = max(df['Datum_WF'].dropna().sum()).replace('-', '_')
-    df_table = make_table(df, df2, version_r, category)
+    df_table = make_table(df, df2, version_r, category, 'OHW_g_')
 
     # Convert df to excel
     strIO = io.BytesIO()
@@ -484,7 +484,7 @@ def download_excel1():
     df, df2 = data_from_DB(preset_selectie)
     df = df[df['RegioVWT'].isin(filter_selectie)]
     version_r = max(df['Datum_WF'].dropna().sum()).replace('-', '_')
-    df_table = make_table(df, df2, version_r, category=None)
+    df_table = make_table(df, df2, version_r, None, 'OHW_g_')
 
     # Convert DF
     strIO = io.BytesIO()
@@ -528,8 +528,9 @@ def download_excel2():
 @cache.memoize()
 def data_from_DB(filter_selectie):
     db = firestore.Client()
-    p_ref = db.collection('Projecten_7')
+    p_ref = db.collection('Projecten_wf')
     inkoop_ref = db.collection('Inkooporders_5')
+    type_VE = 'OHW_g_ever'
 
     def get_dataframe(docs, dataframe):
         for doc in docs:
@@ -541,35 +542,35 @@ def data_from_DB(filter_selectie):
 
     dataframe = []
     if not ('NL' in filter_selectie):
-        docs = p_ref.where('OHW_ever', '==', True).where('Afgehecht', '==', 'niet afgehecht').stream()
+        docs = p_ref.where(type_VE, '==', True).where('Afgehecht', '==', 'niet afgehecht').stream()
         dataframe = get_dataframe(docs, dataframe)
         if not ('AF_1' in filter_selectie):
-            docs = p_ref.where('OHW_ever', '==', True).where('Afgehecht', '==', 'Administratief Afhechting').stream()
+            docs = p_ref.where(type_VE, '==', True).where('Afgehecht', '==', 'Administratief Afhechting').stream()
             dataframe = get_dataframe(docs, dataframe)
         if not ('AF_2' in filter_selectie):
-            docs = p_ref.where('OHW_ever', '==', True).where('Afgehecht', '==', 'Berekening restwerkzaamheden').stream()
+            docs = p_ref.where(type_VE, '==', True).where('Afgehecht', '==', 'Berekening restwerkzaamheden').stream()
             dataframe = get_dataframe(docs, dataframe)
         if not ('AF_3' in filter_selectie):
-            docs = p_ref.where('OHW_ever', '==', True).where('Afgehecht', '==', 'Bis Gereed').stream()
+            docs = p_ref.where(type_VE, '==', True).where('Afgehecht', '==', 'Bis Gereed').stream()
             dataframe = get_dataframe(docs, dataframe)
     elif ('NL' in filter_selectie):
-        docs = p_ref.where('OHW_ever', '==', True).where(
+        docs = p_ref.where(type_VE, '==', True).where(
             'Afgehecht', '==', 'niet afgehecht').where('nullijn', '==', False).stream()
         dataframe = get_dataframe(docs, dataframe)
         if not ('AF_1' in filter_selectie):
-            docs = p_ref.where('OHW_ever', '==', True).where(
+            docs = p_ref.where(type_VE, '==', True).where(
                 'Afgehecht', '==', 'Administratief Afhechting').where('nullijn', '==', False).stream()
             dataframe = get_dataframe(docs, dataframe)
         if not ('AF_2' in filter_selectie):
-            docs = p_ref.where('OHW_ever', '==', True).where(
+            docs = p_ref.where(type_VE, '==', True).where(
                 'Afgehecht', '==', 'Berekening restwerkzaamheden').where('nullijn', '==', False).stream()
             dataframe = get_dataframe(docs, dataframe)
         if not ('AF_3' in filter_selectie):
-            docs = p_ref.where('OHW_ever', '==', True).where(
+            docs = p_ref.where(type_VE, '==', True).where(
                 'Afgehecht', '==', 'Bis Gereed').where('nullijn', '==', False).stream()
             dataframe = get_dataframe(docs, dataframe)
     else:
-        docs = p_ref.where('OHW_ever', '==', True).stream()
+        docs = p_ref.where(type_VE, '==', True).stream()
         dataframe = get_dataframe(docs, dataframe)
     df = pd.DataFrame(dataframe)
     df = df.fillna(False)
@@ -674,6 +675,7 @@ def processed_data(df, df2, category):
     dates = sorted(list(set(df['Datum_WF'].dropna().sum())))
     version = max(dates)
     version_r = version.replace('-', '_')
+    type_VE = 'OHW_g_'
 
     OHW = pd.DataFrame()
     OHW_t = []
@@ -684,33 +686,33 @@ def processed_data(df, df2, category):
     if category == 'global':
         donut = {}
         for cat in config.beschrijving_cat:
-            mask = (df[cat[0:4] + '_' + version_r]) & (df['OHW_' + version_r] < 0)
-            mOHW = round(df[mask]['OHW_' + version_r].sum())
+            mask = (df[cat[0:4] + '_' + version_r]) & (df[type_VE + version_r] < 0)
+            mOHW = round(df[mask][type_VE + version_r].sum())
             if mOHW != 0:
                 donut[cat] = -mOHW
 
         df_table = None
 
-        extrawerk = int(make_table(df, df2, version_r, category=None)['Extra werk'].sum())
+        extrawerk = int(make_table(df, df2, version_r, None, type_VE)['Extra werk'].sum())
 
         for date in dates:
             date_r = date.replace('-', '_')
-            mask = (df['OHW_' + date_r] < 0)
-            OHW_t += [df[mask]['OHW_' + date_r].sum()]
-            pOHW_t += [df[mask]['OHW_' + date_r].count()]
+            mask = (df[type_VE + date_r] < 0)
+            OHW_t += [df[mask][type_VE + date_r].sum()]
+            pOHW_t += [df[mask][type_VE + date_r].count()]
 
     else:
         donut = None
 
-        df_table = make_table(df, df2, version_r, category)
+        df_table = make_table(df, df2, version_r, category, type_VE)
 
         extrawerk = int(df_table['Extra werk'].sum())
 
         for date in dates:
             date_r = date.replace('-', '_')
-            mask = (df[category[0:4] + '_' + date_r]) & (df['OHW_' + date_r] < 0)
-            OHW_t += [df[mask]['OHW_' + date_r].sum()]
-            pOHW_t += [df[mask]['OHW_' + date_r].count()]
+            mask = (df[category[0:4] + '_' + date_r]) & (df[type_VE + date_r] < 0)
+            OHW_t += [df[mask][type_VE + date_r].sum()]
+            pOHW_t += [df[mask][type_VE + date_r].count()]
 
     OHW['OHW'] = OHW_t
     OHW['Datum'] = pd.to_datetime(list(dates))
@@ -729,12 +731,12 @@ def processed_data(df, df2, category):
     return OHW, pOHW, donut, df_table, stats
 
 
-def make_table(df, df2, version_r, category):
+def make_table(df, df2, version_r, category, type_VE):
 
     if category is not None:
-        mask = (df[category[0:4] + '_' + version_r]) & (df['OHW_' + version_r] < 0)
+        mask = (df[category[0:4] + '_' + version_r]) & (df[type_VE + version_r] < 0)
     else:
-        mask = (df['OHW_' + version_r] < 0)
+        mask = (df[type_VE + version_r] < 0)
 
     dataframe = []
     for i in df[mask].index:
@@ -752,7 +754,7 @@ def make_table(df, df2, version_r, category):
             rec_table['Projectstatus'] = df[mask]['Projectstatus'][i]
             rec_table['Afgehecht'] = df[mask]['Afgehecht'][i]
             rec_table['RegioVWT'] = df[mask]['RegioVWT'][i]
-            rec_table['OHW'] = round(df[mask]['OHW_' + version_r][i])
+            rec_table['OHW'] = round(df[mask][type_VE + version_r][i])
             rec_table['DP_aangeboden'] = df[mask]['DP_aangeboden'][i]
             rec_table['Ingekocht'] = round(sum(df[mask]['Ontvangen'][i]))
             dataframe += [rec_table]
