@@ -556,7 +556,13 @@ def data_from_DB(preset_selectie, filter_selectie, category):
                         else:
                             donut[key] = doc['donut'][key]
                 df_table = df_table.append(pd.read_json(doc['df_table'], orient='records'))
+            if category == 'global':
+                df_table = df_table[config.columns].sort_values(by=['OHW'])
+            else:
+                col = ['Beschrijving categorie', 'Oplosactie']
+                df_table = df_table[config.columns + col].sort_values(by=['OHW'])
             count += 1
+
     else:
         OHW = None
         pOHW = None
@@ -627,9 +633,9 @@ def generate_graph(OHW, pOHW, donut, df_table, category):
         layout_pie["height"] = 500
         donut = dict(data=data_pie, layout=layout_pie)
 
-    stats = {'0': str(round(pOHW[pOHW['Datum'] == pOHW['Datum'].max()]['pOHW'].to_list()[0])),
-             '1': str(round(-OHW[OHW['Datum'] == max(OHW['Datum'])]['OHW'].to_list()[0])),
-             '2': str(round(df_table['Extra werk'].sum()))}
+    stats = {'0': str(int(pOHW[pOHW['Datum'] == pOHW['Datum'].max()]['pOHW'].to_list()[0])),
+             '1': str(int(-OHW[OHW['Datum'] == max(OHW['Datum'])]['OHW'].to_list()[0])),
+             '2': str(int(df_table['Extra werk'].sum()))}
 
     df_table = dash_table.DataTable(
         columns=[{"name": i, "id": i} for i in df_table.columns],
