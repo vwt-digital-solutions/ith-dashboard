@@ -391,7 +391,8 @@ def update_text(data1, data2):
 def make_global_figures(preset_selectie, filter_selectie):
     if filter_selectie is None:
         raise PreventUpdate
-    df, df2 = data_from_DB(preset_selectie)
+    type_VE = 'OHW_g_ever'
+    df, df2 = data_from_DB(preset_selectie, type_VE)
     df = df[df['RegioVWT'].isin(filter_selectie)]
     category = 'global'
     if df.empty | df2.empty:
@@ -417,7 +418,8 @@ def make_category_figures(preset_selectie, category, filter_selectie):
         category = config.beschrijving_cat[0]
     else:
         category = category.get('points')[0].get('label')
-    df, df2 = data_from_DB(preset_selectie)
+    type_VE = 'OHW_g_ever'
+    df, df2 = data_from_DB(preset_selectie, type_VE)
     df = df[df['RegioVWT'].isin(filter_selectie)]
     if (df.empty) | (df2.empty):
         raise PreventUpdate
@@ -455,7 +457,8 @@ def download_excel():
     category = flask.request.args.get('categorie')
     preset_selectie = flask.request.args.get('preset')
     filter_selectie = ast.literal_eval(flask.request.args.get('filters'))
-    df, df2 = data_from_DB(preset_selectie)
+    type_VE = 'OHW_g_ever'
+    df, df2 = data_from_DB(preset_selectie, type_VE)
     df = df[df['RegioVWT'].isin(filter_selectie)]
     version_r = max(df['Datum_WF'].dropna().sum()).replace('-', '_')
     df_table = make_table(df, df2, version_r, category, 'OHW_g_')
@@ -481,7 +484,8 @@ def download_excel():
 def download_excel1():
     preset_selectie = flask.request.args.get('preset')
     filter_selectie = ast.literal_eval(flask.request.args.get('filters'))
-    df, df2 = data_from_DB(preset_selectie)
+    type_VE = 'OHW_g_ever'
+    df, df2 = data_from_DB(preset_selectie, type_VE)
     df = df[df['RegioVWT'].isin(filter_selectie)]
     version_r = max(df['Datum_WF'].dropna().sum()).replace('-', '_')
     df_table = make_table(df, df2, version_r, None, 'OHW_g_')
@@ -504,8 +508,10 @@ def download_excel1():
 # download meerwerk excel
 @app.server.route('/download_excel2')
 def download_excel2():
-    df, df2 = data_from_DB(filter_selectie=[])
-    df_table = df2.merge(df[['Pnummer', 'DP_aangeboden']], left_on='Project', right_on='Pnummer', how='left')
+    type_VE = 'OHW_g_ever'
+    df, df2 = data_from_DB([], type_VE)
+    df.loc[:, ('Aangeboden_DP')] = filter_fac(df, -1, 'Aangeboden_DP')
+    df_table = df2.merge(df[['Pnummer', 'Aangeboden_DP']], left_on='Project', right_on='Pnummer', how='left')
     df_table = df_table.drop(['Pnummer'], axis=1).fillna('-').sort_values(by='Extra werk', ascending=False)
 
     # Convert DF
@@ -526,11 +532,10 @@ def download_excel2():
 
 # HELPER FUNCTIES
 @cache.memoize()
-def data_from_DB(filter_selectie):
+def data_from_DB(filter_selectie, type_VE):
     db = firestore.Client()
     p_ref = db.collection('Projecten_wf')
-    inkoop_ref = db.collection('Inkooporders_5')
-    type_VE = 'OHW_g_ever'
+    inkoop_ref = db.collection('Inkooporders_6')
 
     def get_dataframe(docs, dataframe):
         for doc in docs:
@@ -732,6 +737,9 @@ def processed_data(df, df2, category):
 
 
 def make_table(df, df2, version_r, category, type_VE):
+    if type_VE == 'OHW_g_':
+        ext = '_Geulen'
+        ext2 = '_g'
 
     if category is not None:
         mask = (df[category[0:4] + '_' + version_r]) & (df[type_VE + version_r] < 0)
@@ -743,27 +751,27 @@ def make_table(df, df2, version_r, category, type_VE):
         if df[mask]['Datum_WF'][i][-1] == version_r.replace('_', '-'):
             rec_table = {}
             rec_table['Datum_WF'] = version_r.replace('_', '-')
-            rec_table['Openstaand'] = round(df[mask]['Openstaand'][i][-1])
-            rec_table['Gefactureerd'] = (round(df[mask]['Gefactureerd'][i][-1])
+            rec_table['Openstaand'] = round(df[mask]['Openstaand' + ext][i][-1])
+            rec_table['Gefactureerd'] = (round(df[mask]['Gefactureerd' + ext][i][-1])
                                          - rec_table['Openstaand'])
-            rec_table['Aangeboden'] = round(df[mask]['Aangeboden'][i][-1])
-            rec_table['Gerealiseerd'] = round(df[mask]['Gerealiseerd'][i][-1])
-            rec_table['Goedgekeurd'] = round(df[mask]['Goedgekeurd'][i][-1])
+            rec_table['Aangeboden'] = round(df[mask]['Aangeboden' + ext][i][-1])
+            rec_table['Gerealiseerd'] = round(df[mask]['Gerealiseerd_Geulen'][i][-1])
+            rec_table['Goedgekeurd'] = round(df[mask]['Goedgekeurd' + ext][i][-1])
             rec_table['Bnummer'] = df[mask]['Bnummer'][i]
             rec_table['Pnummer'] = df[mask]['Pnummer'][i]
-            rec_table['Projectstatus'] = df[mask]['Projectstatus'][i]
+            rec_table['Projectstatus'] = df[mask]['PROJECTSTATUS'][i]
             rec_table['Afgehecht'] = df[mask]['Afgehecht'][i]
             rec_table['RegioVWT'] = df[mask]['RegioVWT'][i]
             rec_table['OHW'] = round(df[mask][type_VE + version_r][i])
-            rec_table['DP_aangeboden'] = df[mask]['DP_aangeboden'][i]
-            rec_table['Ingekocht'] = round(sum(df[mask]['Ontvangen'][i]))
+            rec_table['Aangeboden_DP'] = df[mask]['Aangeboden_DP'][i][-1]
+            rec_table['Ingekocht'] = round(sum(df[mask]['Ontvangen' + ext2][i]))
             dataframe += [rec_table]
     df_table = pd.DataFrame(dataframe)
 
     df_table = df_table[df_table['OHW'] < 0]
     df_table = df_table.merge(df2.groupby('Project').agg(
         {'Extra werk': 'sum'}), left_on='Pnummer', right_on='Project', how='left').fillna(0)
-    df_table.loc[df_table['DP_aangeboden'] > 0, ('Extra werk')] = 0
+    df_table.loc[df_table['Aangeboden_DP'] > 0, ('Extra werk')] = 0
     col_extra = []
     if category is not None:
         df_table['Beschrijving categorie'] = category
@@ -775,10 +783,9 @@ def make_table(df, df2, version_r, category, type_VE):
     return df_table
 
 
-def filter_fac(df, list_i):
-    value = 0
+def filter_fac(df, list_i, col):
+    value = []
     for i in df.index:
-        if (len(df['Gefactureerd'][i]) - 1) >= list_i:
-            value += df['Gefactureerd'][i][list_i]
+        value += [df[col][i][list_i]]
 
     return value
