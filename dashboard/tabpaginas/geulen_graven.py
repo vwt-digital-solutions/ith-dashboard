@@ -87,23 +87,19 @@ def get_body():
                                     html.P("Presets:"),
                                     dcc.Dropdown(
                                         options=[
-                                            {'label': 'Vanaf nul punt [NL]',
+                                            {'label': 'Vanaf nul punt',
                                                 'value': 'NL'},
-                                            {'label': """Niet meenemen, afgehecht:
-                                                'Administratief Afhechting'
-                                                [AF_1]""",
-                                                'value': 'AF_1'},
-                                            {'label': """Niet meenemen, afgehecht:
-                                                'Berekening restwerkzaamheden'
-                                                [AF_2]""",
-                                                'value': 'AF_2'},
-                                            {'label': """Niet meenemen, afgehecht:
-                                                'Bis Gereed'
-                                                [AF_3]""",
-                                                'value': 'AF_3'},
+                                            {'label': 'Afgehecht: Administratief Afhechting',
+                                                'value': 'Administratief Afhechting'},
+                                            {'label': 'Afgehecht: Berekening restwerkzaamheden',
+                                                'value': 'Berekening restwerkzaamheden'},
+                                            {'label': 'Afgehecht: Bis Gereed',
+                                                'value': 'Bis Gereed'},
+                                            {'label': 'Afgehecht: niet afgehecht',
+                                                'value': 'niet afgehecht'},
                                         ],
                                         id='checklist_filters',
-                                        value=['AF_1', 'AF_2', 'AF_3'],
+                                        value=['niet afgehecht'],
                                         multi=True,
                                     ),
                                 ],
@@ -391,13 +387,15 @@ def update_text(data1, data2):
 def make_global_figures(preset_selectie, filter_selectie):
     if filter_selectie is None:
         raise PreventUpdate
-    type_VE = 'OHW_g_ever'
-    df, df2 = data_from_DB(preset_selectie, type_VE)
-    df = df[df['RegioVWT'].isin(filter_selectie)]
+
     category = 'global'
-    if df.empty | df2.empty:
+    OHW, pOHW, donut, df_table = data_from_DB(preset_selectie, filter_selectie, category)
+
+    if OHW is None:
         raise PreventUpdate
-    fig_OHW, fig_pie, _, stats = generate_graph(category, df, df2)
+
+    fig_OHW, fig_pie, _, stats = generate_graph(OHW, pOHW, donut, df_table, category)
+
     return [fig_OHW, fig_pie, stats]
 
 
@@ -418,12 +416,10 @@ def make_category_figures(preset_selectie, category, filter_selectie):
         category = config.beschrijving_cat[0]
     else:
         category = category.get('points')[0].get('label')
-    type_VE = 'OHW_g_ever'
-    df, df2 = data_from_DB(preset_selectie, type_VE)
-    df = df[df['RegioVWT'].isin(filter_selectie)]
-    if (df.empty) | (df2.empty):
+    OHW, pOHW, _, df_table = data_from_DB(preset_selectie, filter_selectie, category[0:4])
+    if OHW is None:
         raise PreventUpdate
-    fig_OHW, _, table, stats = generate_graph(category, df, df2)
+    fig_OHW, _, table, stats = generate_graph(OHW, pOHW, None, df_table, category)
 
     return [fig_OHW, table, stats]
 
@@ -455,13 +451,10 @@ def update_link(preset_selectie, category, filter_selectie):
 @app.server.route('/download_excel')
 def download_excel():
     category = flask.request.args.get('categorie')
-    preset_selectie = flask.request.args.get('preset')
+    preset_selectie = ast.literal_eval(flask.request.args.get('preset'))
     filter_selectie = ast.literal_eval(flask.request.args.get('filters'))
-    type_VE = 'OHW_g_ever'
-    df, df2 = data_from_DB(preset_selectie, type_VE)
-    df = df[df['RegioVWT'].isin(filter_selectie)]
-    version_r = max(df['Datum_WF'].dropna().sum()).replace('-', '_')
-    df_table = make_table(df, df2, version_r, category, 'OHW_g_')
+
+    _, _, _, df_table = data_from_DB(preset_selectie, filter_selectie, category[0:4])
 
     # Convert df to excel
     strIO = io.BytesIO()
@@ -482,13 +475,10 @@ def download_excel():
 # download volledig OHW frame
 @app.server.route('/download_excel1')
 def download_excel1():
-    preset_selectie = flask.request.args.get('preset')
+    preset_selectie = ast.literal_eval(flask.request.args.get('preset'))
     filter_selectie = ast.literal_eval(flask.request.args.get('filters'))
-    type_VE = 'OHW_g_ever'
-    df, df2 = data_from_DB(preset_selectie, type_VE)
-    df = df[df['RegioVWT'].isin(filter_selectie)]
-    version_r = max(df['Datum_WF'].dropna().sum()).replace('-', '_')
-    df_table = make_table(df, df2, version_r, None, 'OHW_g_')
+    category = 'global'
+    _, _, _, df_table = data_from_DB(preset_selectie, filter_selectie, category)
 
     # Convert DF
     strIO = io.BytesIO()
@@ -508,16 +498,17 @@ def download_excel1():
 # download meerwerk excel
 @app.server.route('/download_excel2')
 def download_excel2():
-    type_VE = 'OHW_g_ever'
-    df, df2 = data_from_DB([], type_VE)
-    df.loc[:, ('Aangeboden_DP')] = filter_fac(df, -1, 'Aangeboden_DP')
-    df_table = df2.merge(df[['Pnummer', 'Aangeboden_DP']], left_on='Project', right_on='Pnummer', how='left')
-    df_table = df_table.drop(['Pnummer'], axis=1).fillna('-').sort_values(by='Extra werk', ascending=False)
+    db = firestore.Client()
+    d_ref = db.collection('dashboard_geulen')
+    doc1 = d_ref.document('ExtraWerk1').get().to_dict()
+    doc2 = d_ref.document('ExtraWerk2').get().to_dict()
+    Inkoop = pd.read_json(doc1['df_table1'], orient='records')
+    Inkoop = Inkoop.append(pd.read_json(doc2['df_table2'], orient='records')).reset_index(drop=True)
 
     # Convert DF
     strIO = io.BytesIO()
     excel_writer = pd.ExcelWriter(strIO, engine="xlsxwriter")
-    df_table.to_excel(excel_writer, sheet_name="sheet1", index=False)
+    Inkoop.to_excel(excel_writer, sheet_name="sheet1", index=False)
     excel_writer.save()
     strIO.getvalue()
     strIO.seek(0)
@@ -532,86 +523,64 @@ def download_excel2():
 
 # HELPER FUNCTIES
 @cache.memoize()
-def data_from_DB(filter_selectie, type_VE):
-    db = firestore.Client()
-    p_ref = db.collection('Projecten_wf')
-    inkoop_ref = db.collection('Inkooporders_6')
+def data_from_DB(preset_selectie, filter_selectie, category):
+    if (not preset_selectie == []) & (not filter_selectie == []):
+        db = firestore.Client()
+        d_ref = db.collection('dashboard_geulen')
 
-    def get_dataframe(docs, dataframe):
+        keys = []
+        for key1 in preset_selectie:
+            for key2 in filter_selectie:
+                keys += [str('NL' not in preset_selectie) + key1.replace(' ', '_') + key2 + category]
+
+        OHW = None
+        pOHW = None
+        donut = {}
+        df_table = None
+        count = 0
+        docs = d_ref.where('filters', 'in', keys).stream()
         for doc in docs:
-            Pnummer = doc.id
             doc = doc.to_dict()
-            doc['Pnummer'] = Pnummer
-            dataframe += [doc]
-        return dataframe
-
-    dataframe = []
-    if not ('NL' in filter_selectie):
-        docs = p_ref.where(type_VE, '==', True).where('Afgehecht', '==', 'niet afgehecht').stream()
-        dataframe = get_dataframe(docs, dataframe)
-        if not ('AF_1' in filter_selectie):
-            docs = p_ref.where(type_VE, '==', True).where('Afgehecht', '==', 'Administratief Afhechting').stream()
-            dataframe = get_dataframe(docs, dataframe)
-        if not ('AF_2' in filter_selectie):
-            docs = p_ref.where(type_VE, '==', True).where('Afgehecht', '==', 'Berekening restwerkzaamheden').stream()
-            dataframe = get_dataframe(docs, dataframe)
-        if not ('AF_3' in filter_selectie):
-            docs = p_ref.where(type_VE, '==', True).where('Afgehecht', '==', 'Bis Gereed').stream()
-            dataframe = get_dataframe(docs, dataframe)
-    elif ('NL' in filter_selectie):
-        docs = p_ref.where(type_VE, '==', True).where(
-            'Afgehecht', '==', 'niet afgehecht').where('nullijn', '==', False).stream()
-        dataframe = get_dataframe(docs, dataframe)
-        if not ('AF_1' in filter_selectie):
-            docs = p_ref.where(type_VE, '==', True).where(
-                'Afgehecht', '==', 'Administratief Afhechting').where('nullijn', '==', False).stream()
-            dataframe = get_dataframe(docs, dataframe)
-        if not ('AF_2' in filter_selectie):
-            docs = p_ref.where(type_VE, '==', True).where(
-                'Afgehecht', '==', 'Berekening restwerkzaamheden').where('nullijn', '==', False).stream()
-            dataframe = get_dataframe(docs, dataframe)
-        if not ('AF_3' in filter_selectie):
-            docs = p_ref.where(type_VE, '==', True).where(
-                'Afgehecht', '==', 'Bis Gereed').where('nullijn', '==', False).stream()
-            dataframe = get_dataframe(docs, dataframe)
+            if count == 0:
+                OHW = pd.read_json(doc['OHW'], orient='records')
+                pOHW = pd.read_json(doc['pOHW'], orient='records')
+                donut = doc['donut']
+                df_table = pd.read_json(doc['df_table'], orient='records')
+            else:
+                OHW['OHW'] = OHW['OHW'] + pd.read_json(doc['OHW'], orient='records')['OHW']
+                pOHW['pOHW'] = pOHW['pOHW'] + pd.read_json(doc['pOHW'], orient='records')['pOHW']
+                if doc['donut'] is not None:
+                    for key in doc['donut']:
+                        if key in donut:
+                            donut[key] = donut[key] + doc['donut'][key]
+                        else:
+                            donut[key] = doc['donut'][key]
+                df_table = df_table.append(pd.read_json(doc['df_table'], orient='records'))
+            count += 1
     else:
-        docs = p_ref.where(type_VE, '==', True).stream()
-        dataframe = get_dataframe(docs, dataframe)
-    df = pd.DataFrame(dataframe)
-    df = df.fillna(False)
-    df.loc[~df['RegioVWT'].isin(['410.0', '420.0', '430.0']), ('RegioVWT')] = '000'
+        OHW = None
+        pOHW = None
+        donut = {}
+        df_table = None
 
-    docs = inkoop_ref.where('EW', '==', True).where('DP', '==', False).where('Behandeld', '==', False).stream()
-    dataframe2 = []
-    for doc in docs:
-        inkoopid = doc.id
-        doc = doc.to_dict()
-        for key in doc['Ontvangen']:
-            dataframe2 += [{'Project': key,
-                            'Extra werk': doc['Ontvangen'][key],
-                            'Inkooporder': inkoopid}]
-    df2 = pd.DataFrame(dataframe2)
-
-    return df, df2
+    return OHW, pOHW, donut, df_table
 
 
-def generate_graph(category, df, df2):
-
-    OHW, pOHW, donut, df_table, stats = processed_data(df, df2, category)
+def generate_graph(OHW, pOHW, donut, df_table, category):
 
     data_history_OHW = [
         dict(
             type="line",
-            x=OHW.index,
-            y=-OHW,
+            x=OHW['Datum'],
+            y=-OHW['OHW'],
             name="OHW",
             opacity=0.5,
             hoverinfo="skip",
         ),
         dict(
             type="line",
-            x=pOHW.index,
-            y=pOHW,
+            x=pOHW['Datum'],
+            y=pOHW['pOHW'],
             name="projecten_OHW",
             opacity=0.5,
             hoverinfo="skip",
@@ -658,134 +627,21 @@ def generate_graph(category, df, df2):
         layout_pie["height"] = 500
         donut = dict(data=data_pie, layout=layout_pie)
 
-    if df_table is not None:
-        df_table = dash_table.DataTable(
-            columns=[{"name": i, "id": i} for i in df_table.columns],
-            data=df_table.to_dict("rows"),
-            style_table={'overflowX': 'auto'},
-            style_header=table_styles['header'],
-            style_cell=table_styles['cell']['action'],
-            style_filter=table_styles['filter'],
-            css=[{
-                'selector': 'table',
-                'rule': 'width: 100%;'
-            }],
-        )
+    stats = {'0': str(round(pOHW[pOHW['Datum'] == pOHW['Datum'].max()]['pOHW'].to_list()[0])),
+             '1': str(round(-OHW[OHW['Datum'] == max(OHW['Datum'])]['OHW'].to_list()[0])),
+             '2': str(round(df_table['Extra werk'].sum()))}
+
+    df_table = dash_table.DataTable(
+        columns=[{"name": i, "id": i} for i in df_table.columns],
+        data=df_table.to_dict("rows"),
+        style_table={'overflowX': 'auto'},
+        style_header=table_styles['header'],
+        style_cell=table_styles['cell']['action'],
+        style_filter=table_styles['filter'],
+        css=[{
+            'selector': 'table',
+            'rule': 'width: 100%;'
+        }],
+    )
 
     return figure_OHW, donut, df_table, stats
-
-
-def processed_data(df, df2, category):
-
-    dates = sorted(list(set(df['Datum_WF'].dropna().sum())))
-    version = max(dates)
-    version_r = version.replace('-', '_')
-    type_VE = 'OHW_g_'
-
-    OHW = pd.DataFrame()
-    OHW_t = []
-
-    pOHW = pd.DataFrame()
-    pOHW_t = []
-
-    if category == 'global':
-        donut = {}
-        for cat in config.beschrijving_cat:
-            mask = (df[cat[0:4] + '_' + version_r]) & (df[type_VE + version_r] < 0)
-            mOHW = round(df[mask][type_VE + version_r].sum())
-            if mOHW != 0:
-                donut[cat] = -mOHW
-
-        df_table = None
-
-        extrawerk = int(make_table(df, df2, version_r, None, type_VE)['Extra werk'].sum())
-
-        for date in dates:
-            date_r = date.replace('-', '_')
-            mask = (df[type_VE + date_r] < 0)
-            OHW_t += [df[mask][type_VE + date_r].sum()]
-            pOHW_t += [df[mask][type_VE + date_r].count()]
-
-    else:
-        donut = None
-
-        df_table = make_table(df, df2, version_r, category, type_VE)
-
-        extrawerk = int(df_table['Extra werk'].sum())
-
-        for date in dates:
-            date_r = date.replace('-', '_')
-            mask = (df[category[0:4] + '_' + date_r]) & (df[type_VE + date_r] < 0)
-            OHW_t += [df[mask][type_VE + date_r].sum()]
-            pOHW_t += [df[mask][type_VE + date_r].count()]
-
-    OHW['OHW'] = OHW_t
-    OHW['Datum'] = pd.to_datetime(list(dates))
-    OHW.set_index('Datum', inplace=True)
-    OHW = OHW['OHW']
-
-    pOHW['pOHW'] = pOHW_t
-    pOHW['Datum'] = pd.to_datetime(list(dates))
-    pOHW.set_index('Datum', inplace=True)
-    pOHW = pOHW['pOHW']
-
-    stats = {'0': str(round(pOHW[pOHW.index.max()])),
-             '1': str(round(-OHW[OHW.index.max()])),
-             '2': str(round(extrawerk))}
-
-    return OHW, pOHW, donut, df_table, stats
-
-
-def make_table(df, df2, version_r, category, type_VE):
-    if type_VE == 'OHW_g_':
-        ext = '_Geulen'
-        ext2 = '_g'
-
-    if category is not None:
-        mask = (df[category[0:4] + '_' + version_r]) & (df[type_VE + version_r] < 0)
-    else:
-        mask = (df[type_VE + version_r] < 0)
-
-    dataframe = []
-    for i in df[mask].index:
-        if df[mask]['Datum_WF'][i][-1] == version_r.replace('_', '-'):
-            rec_table = {}
-            rec_table['Datum_WF'] = version_r.replace('_', '-')
-            rec_table['Openstaand'] = round(df[mask]['Openstaand' + ext][i][-1])
-            rec_table['Gefactureerd'] = (round(df[mask]['Gefactureerd' + ext][i][-1])
-                                         - rec_table['Openstaand'])
-            rec_table['Aangeboden'] = round(df[mask]['Aangeboden' + ext][i][-1])
-            rec_table['Gerealiseerd'] = round(df[mask]['Gerealiseerd_Geulen'][i][-1])
-            rec_table['Goedgekeurd'] = round(df[mask]['Goedgekeurd' + ext][i][-1])
-            rec_table['Bnummer'] = df[mask]['Bnummer'][i]
-            rec_table['Pnummer'] = df[mask]['Pnummer'][i]
-            rec_table['Projectstatus'] = df[mask]['PROJECTSTATUS'][i]
-            rec_table['Afgehecht'] = df[mask]['Afgehecht'][i]
-            rec_table['RegioVWT'] = df[mask]['RegioVWT'][i]
-            rec_table['OHW'] = round(df[mask][type_VE + version_r][i])
-            rec_table['Aangeboden_DP'] = df[mask]['Aangeboden_DP'][i][-1]
-            rec_table['Ingekocht'] = round(sum(df[mask]['Ontvangen' + ext2][i]))
-            dataframe += [rec_table]
-    df_table = pd.DataFrame(dataframe)
-
-    df_table = df_table[df_table['OHW'] < 0]
-    df_table = df_table.merge(df2.groupby('Project').agg(
-        {'Extra werk': 'sum'}), left_on='Pnummer', right_on='Project', how='left').fillna(0)
-    df_table.loc[df_table['Aangeboden_DP'] > 0, ('Extra werk')] = 0
-    col_extra = []
-    if category is not None:
-        df_table['Beschrijving categorie'] = category
-        df_table['Oplosactie'] = config.oplosactie[category]
-        col_extra = ['Beschrijving categorie', 'Oplosactie']
-
-    df_table = df_table[config.columns + col_extra].sort_values(by='OHW', ascending=True)
-
-    return df_table
-
-
-def filter_fac(df, list_i, col):
-    value = []
-    for i in df.index:
-        value += [df[col][i][list_i]]
-
-    return value
