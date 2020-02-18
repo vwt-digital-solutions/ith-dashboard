@@ -65,7 +65,7 @@ def get_body():
                                         style={"margin-top": "0px"}
                                     ),
                                     html.P(),
-                                    html.P("(Laatste nieuwe data: 23-12-2019)")
+                                    html.P("(Laatste nieuwe data: 17-02-2020)")
                                 ],
                                 style={"margin-left": "-120px"},
                             )
@@ -555,13 +555,13 @@ def data_from_DB(preset_selectie, filter_selectie, category):
                             donut[key] = donut[key] + doc['donut'][key]
                         else:
                             donut[key] = doc['donut'][key]
-                df_table = df_table.append(pd.read_json(doc['df_table'], orient='records'))
-            if category == 'global':
-                df_table = df_table[config.columns].sort_values(by=['OHW'])
-            else:
-                col = ['Beschrijving categorie', 'Oplosactie']
-                df_table = df_table[config.columns + col].sort_values(by=['OHW'])
+                df_table = df_table.append(pd.read_json(doc['df_table'], orient='records'), sort=True)
             count += 1
+        if category == 'global':
+            df_table = df_table[config.columns_g].sort_values(by=['OHW'])
+        else:
+            col = ['Beschrijving categorie', 'Oplosactie']
+            df_table = df_table[config.columns_g + col].sort_values(by=['OHW'])
 
     else:
         OHW = None

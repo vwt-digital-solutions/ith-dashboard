@@ -18,26 +18,26 @@ config_pages = OrderedDict(
             'link': ['/geulen_graven', '/geulen_graven/'],
             'body': geulen_graven
         }),
-        # ('HAS', {
-        #     'name': 'HAS',
-        #     'link': ['/HAS', '/HAS/'],
-        #     'body': has
-        # }),
-        # ('blazen', {
-        #     'name': 'Blazen',
-        #     'link': ['/blazen', '/blazen/'],
-        #     'body': blazen
-        # }),
-        # ('DP', {
-        #     'name': 'DP',
-        #     'link': ['/DP', '/DP/'],
-        #     'body': DP
-        # }),
-        # ('lades', {
-        #     'name': 'lades',
-        #     'link': ['/lades', '/lades/'],
-        #     'body': lades
-        # })
+        ('HAS', {
+            'name': 'HAS',
+            'link': ['/HAS', '/HAS/'],
+            'body': has
+        }),
+        ('blazen', {
+            'name': 'Blazen',
+            'link': ['/blazen', '/blazen/'],
+            'body': blazen
+        }),
+        ('DP', {
+            'name': 'DP',
+            'link': ['/DP', '/DP/'],
+            'body': DP
+        }),
+        ('lades', {
+            'name': 'lades',
+            'link': ['/lades', '/lades/'],
+            'body': lades
+        })
     ]
 )
 

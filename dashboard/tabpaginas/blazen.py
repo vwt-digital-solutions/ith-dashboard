@@ -1,16 +1,20 @@
-import dash_html_components as html
+import copy
+import flask
+import io
+import config
+import datetime as dt
+import pandas as pd
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
-import config
-import pandas as pd
-import copy
+import dash_html_components as html
 import dash_table
-
-from app import cache, app
+import ast
+from flask import send_file
 from google.cloud import firestore
-from elements import table_styles
 from dash.dependencies import Input, Output, State
-
+from dash.exceptions import PreventUpdate
+from elements import table_styles
+from app import app, cache
 
 # layout graphs
 layout = dict(
@@ -24,131 +28,561 @@ layout = dict(
 )
 
 
+# APP LAYOUT
 def get_body():
     page = html.Div(
         [
+            dcc.Store(id="aggregate_data_b",
+                      data={'0': '0', '1': '0', '2': '0'}),
+            dcc.Store(id="aggregate_data2_b",
+                      data={'0': '0', '1': '0', '2': '0'}),
             html.Div(
                 [
-                    dcc.Dropdown(
-                        options=config.checklist_workflow_afgehecht,
-                        id='checklist_workflow_blazen',
-                        value=['Administratief Afhechting', 'Berekening restwerkzaamheden', 'Bis Gereed'],
-                        multi=True,
-                    ),
-                    html.Br(),
-                    dcc.Graph(id='taartdiagram_blazen'),
                     html.Div(
                         [
-                            dbc.Button('Uitleg categorieën', id='uitleg_blazen'),
+                            html.Img(
+                                src=app.get_asset_url("vqd.png"),
+                                id="vqd-image",
+                                style={
+                                    "height": "100px",
+                                    "width": "auto",
+                                    "margin-bottom": "25px",
+                                },
+                            )
+                        ],
+                        className="one-third column",
+                    ),
+                    html.Div(
+                        [
                             html.Div(
                                 [
-                                    dcc.Markdown(config.uitleg_categorie_blazen)
+                                    html.H3(
+                                        "Analyse OHW VWT Infratechniek",
+                                        style={"margin-bottom": "0px"},
+                                    ),
+                                    html.H5(
+                                        "Glasvezel nieuwbouw",
+                                        style={"margin-top": "0px"}
+                                    ),
+                                    html.P(),
+                                    html.P("(Laatste nieuwe data: 17-02-2020)")
                                 ],
-                                id='uitleg_collapse_blazen',
-                                hidden=True,
+                                style={"margin-left": "-120px"},
                             )
-                        ]
-                    )
+                        ],
+                        className="one-half column",
+                        id="title",
+                    ),
                 ],
-                className='pretty_container'
+                id="header",
+                className="row",
+                style={"margin-bottom": "25px"},
             ),
             html.Div(
-                id='tabel_blazen',
+                [
+                    html.Div(
+                        [
+                            html.Div(
+                                [
+                                    html.P("Presets:"),
+                                    dcc.Dropdown(
+                                        options=[
+                                            {'label': 'Vanaf nul punt',
+                                                'value': 'NL'},
+                                            {'label': 'Afgehecht: Administratief Afhechting',
+                                                'value': 'Administratief Afhechting'},
+                                            {'label': 'Afgehecht: Berekening restwerkzaamheden',
+                                                'value': 'Berekening restwerkzaamheden'},
+                                            {'label': 'Afgehecht: Bis Gereed',
+                                                'value': 'Bis Gereed'},
+                                            {'label': 'Afgehecht: niet afgehecht',
+                                                'value': 'niet afgehecht'},
+                                        ],
+                                        id='checklist_filters_b',
+                                        value=['niet afgehecht'],
+                                        multi=True,
+                                    ),
+                                ],
+                                id="filter_container",
+                                className="pretty_container_title columns",
+                            ),
+                            html.Div(
+                                [
+                                    html.P("Filter regio:"),
+                                    dcc.Dropdown(
+                                        options=[
+                                            {'label': "'t Harde",
+                                                'value': '410.0'},
+                                            {'label': "Uden",
+                                                'value': '420.0'},
+                                            {'label': "Papendrecht",
+                                                'value': '430.0'},
+                                            {'label': "Omzetten",
+                                                'value': '000'},
+                                        ],
+                                        id='checklist_filters2_b',
+                                        value=['410.0', '420.0', '430.0'],
+                                        multi=True,
+                                    ),
+                                ],
+                                id="filter_container",
+                                className="pretty_container_title columns",
+                            ),
+                            html.Div(
+                                [
+                                    html.H6(id="download"),
+                                    html.P("Excel downloads:"),
+                                    html.Button(
+                                        html.A(
+                                            'download excel (selected categories)',
+                                            id='download-link_b',
+                                            href="""/download_excel_b?categorie=1
+                                                    &filters=['empty']""",
+                                            style={"color": "white",
+                                                   "text-decoration": "none"}
+                                        ),
+                                        style={"background-color": "#009FDF",
+                                               "margin-bottom": "5px",
+                                               "display": "block"}
+
+                                    ),
+                                    html.Button(
+                                        html.A(
+                                            'download excel (all categories)',
+                                            id='download-link1_b',
+                                            href="""/download_excel1_b
+                                                    ?filters=['empty']""",
+                                            style={"color": "white",
+                                                   "text-decoration": "none"}
+                                        ),
+                                        style={"background-color": "#009FDF",
+                                               "margin-bottom": "5px",
+                                               "display": "block"}
+                                    ),
+                                ],
+                                id="download_container",
+                                className="pretty_container_title columns",
+                            ),
+                        ],
+                        id="info-container",
+                        className="container-display",
+                    ),
+                ],
+            ),
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            html.H5(
+                                "Totaal overzicht OHW analyse:",
+                                style={"margin-top": "0px"}
+                            ),
+                        ],
+                        id='uitleg_1_b',
+                        className="pretty_container_title columns",
+                    ),
+                ],
+                className="container-display",
+            ),
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            html.Div(
+                                [
+                                    html.H6(id="info_globaal_0_b"),
+                                    html.P("Aantal projecten met OHW totaal")
+                                ],
+                                id="info_globaal_container0",
+                                className="pretty_container 3 columns",
+                            ),
+                            html.Div(
+                                [
+                                    html.H6(id="info_globaal_1_b"),
+                                    html.P("Aantal meter OHW totaal")
+                                ],
+                                id="info_globaal_container1",
+                                className="pretty_container 3 columns",
+                            ),
+                        ],
+                        id="info-container1",
+                        className="container-display",
+                    ),
+                ],
+            ),
+            html.Div(
+                [
+                    html.Div(
+                            [dcc.Graph(id="OHW_globaal_graph_b")],
+                            className="pretty_container column",
+                    ),
+                ],
+                id="main_graphs",
+                className="container-display",
+            ),
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            html.H5(
+                                """
+                                Categorisering van de projecten met OHW:
+                                """,
+                                style={"margin-top": "0px"}
+                            ),
+                        ],
+                        id='uitleg_2',
+                        className="pretty_container_title columns",
+                    ),
+                ],
+                className="container-display",
+            ),
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            html.Div(
+                                [
+                                    html.H6(id="info_bakje_0_b"),
+                                    html.P("Aantal projecten in categorie")
+
+                                ],
+                                className="pretty_container 3 columns",
+                            ),
+                            html.Div(
+                                [
+                                    html.H6(id="info_bakje_1_b"),
+                                    html.P("Aantal meter OHW in categorie")
+                                ],
+                                className="pretty_container 3 columns",
+                            ),
+                        ],
+                        id="info-container3",
+                        className="container-display",
+                    ),
+                ],
+            ),
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            dcc.Graph(id="pie_graph_b"),
+                            html.Div(
+                                [
+                                    dbc.Button(
+                                        'Uitleg categorieën',
+                                        id='uitleg_button'
+                                    ),
+                                    html.Div(
+                                        [
+                                            dcc.Markdown(
+                                                config.uitleg_categorie_blazen
+                                            )
+                                        ],
+                                        id='uitleg_collapse',
+                                        hidden=True,
+                                    )
+                                ],
+                            ),
+                        ],
+                        className="pretty_container column",
+                    ),
+                    html.Div(
+                        dcc.Graph(id="OHW_bakje_graph_b"),
+                        className="pretty_container column",
+                    ),
+                ],
+                className="container-display",
+            ),
+            html.Div(
+                id='status_table_ext_b',
                 className="pretty_container",
-                hidden=True
+                # hidden=True,
             ),
         ],
+        id="mainContainer",
+        style={"display": "flex", "flex-direction": "column"},
     )
     return page
 
 
+# CALBACK FUNCTIONS
+# Informatie button
 @app.callback(
-    Output('uitleg_collapse_blazen', 'hidden'),
-    [Input('uitleg_blazen', 'n_clicks')],
-    [State('uitleg_collapse_blazen', 'hidden')]
+    Output("uitleg_collapse_b", "hidden"),
+    [Input("uitleg_button_b", "n_clicks")],
+    [State("uitleg_collapse_b", "hidden")],
 )
-def toggle_collapse_blazen(n, is_open):
+def toggle_collapse(n, is_open):
     if n:
         return not is_open
     return is_open
 
 
+# Info containers
 @app.callback(
     [
-        Output('tabel_blazen', 'children'),
-        Output('tabel_blazen', 'hidden'),
+        Output("info_globaal_0_b", "children"),
+        Output("info_globaal_1_b", "children"),
+        Output("info_bakje_0_b", "children"),
+        Output("info_bakje_1_b", "children"),
     ],
     [
-        Input('taartdiagram_blazen', 'clickData'),
-        Input('checklist_workflow_blazen', 'value')
-    ]
+        Input("aggregate_data_b", "data"),
+        Input("aggregate_data2_b", "data")
+    ],
 )
-def generate_tabel_blazen(selected_category, filter_selectie):
-    if selected_category is None:
-        return [html.P()], True
-    df = data_from_DB(filter_selectie)
-    selected_category = selected_category.get('points')[0].get('label')
-    df = df[df[selected_category[0:4]]]
-    return make_tabel_blazen(df), False
+def update_text(data1, data2):
+    return [
+        data1.get('0') + " projecten",
+        data1.get('1') + " meter",
+        data2.get('0') + " projecten",
+        data2.get('1') + " meter",
+    ]
+
+
+# Globale grafieken
+@app.callback(
+    [Output("OHW_globaal_graph_b", "figure"),
+     Output("pie_graph_b", "figure"),
+     Output("aggregate_data_b", "data")
+     ],
+    [Input("checklist_filters_b", 'value'),
+     Input("checklist_filters2_b", 'value')
+     ]
+)
+def make_global_figures(preset_selectie, filter_selectie):
+    if filter_selectie is None:
+        raise PreventUpdate
+
+    category = 'global'
+    OHW, pOHW, donut, df_table = data_from_DB(preset_selectie, filter_selectie, category)
+
+    if OHW is None:
+        raise PreventUpdate
+
+    fig_OHW, fig_pie, _, stats = generate_graph(OHW, pOHW, donut, df_table, category)
+
+    return [fig_OHW, fig_pie, stats]
 
 
 @app.callback(
-    Output('taartdiagram_blazen', 'figure'),
-    [Input('checklist_workflow_blazen', 'value')]
+    [Output("OHW_bakje_graph_b", "figure"),
+     Output('status_table_ext_b', 'children'),
+     Output("aggregate_data2_b", "data")
+     ],
+    [Input("checklist_filters_b", 'value'),
+     Input("pie_graph_b", 'clickData'),
+     Input("checklist_filters2_b", 'value'),
+     ]
 )
-def generate_taart_diagram(filter_selectie):
-    df = data_from_DB(filter_selectie)
-    figure = make_taartdiagram_blazen(df)
-    return figure
+def make_category_figures(preset_selectie, category, filter_selectie):
+    if preset_selectie is None:
+        raise PreventUpdate
+    if category is None:
+        category = config.beschrijving_cat2[0]
+    else:
+        category = category.get('points')[0].get('label')
+    OHW, pOHW, _, df_table = data_from_DB(preset_selectie, filter_selectie, category[0:4])
+    if OHW is None:
+        raise PreventUpdate
+    fig_OHW, _, table, stats = generate_graph(OHW, pOHW, None, df_table, category)
 
-# taartdiagram
+    return [fig_OHW, table, stats]
+
+
+# DOWNLOAD FUNCTIES
+@app.callback(
+    [Output('download-link_b', 'href'),
+     Output('download-link1_b', 'href'),
+     ],
+    [Input("checklist_filters_b", 'value'),
+     Input('pie_graph_b', 'clickData'),
+     Input("checklist_filters2_b", 'value'),
+     ]
+)
+def update_link(preset_selectie, category, filter_selectie):
+    if preset_selectie is None:
+        raise PreventUpdate
+    if category is None:
+        cat = config.beschrijving_cat2[0]
+    else:
+        cat = category.get('points')[0].get('label')
+
+    return ['''/download_excel_b?categorie={}&preset={}&filters={}'''.format(
+            cat, preset_selectie, filter_selectie),
+            '/download_excel1_b?preset={}&filters={}'.format(preset_selectie, filter_selectie)
+            ]
+
+# download categorie
+@app.server.route('/download_excel_b')
+def download_excel_b():
+    category = flask.request.args.get('categorie')
+    preset_selectie = ast.literal_eval(flask.request.args.get('preset'))
+    filter_selectie = ast.literal_eval(flask.request.args.get('filters'))
+
+    _, _, _, df_table = data_from_DB(preset_selectie, filter_selectie, category[0:4])
+
+    # Convert df to excel
+    strIO = io.BytesIO()
+    excel_writer = pd.ExcelWriter(strIO, engine="xlsxwriter")
+    df_table.to_excel(excel_writer, sheet_name="sheet1", index=False)
+    excel_writer.save()
+    strIO.getvalue()
+    strIO.seek(0)
+
+    # Name download file
+    date = dt.datetime.now().strftime('%d-%m-%Y')
+    filename = "Info_project_{}_filters_{}_{}.xlsx".format(
+        category[0:4], filter_selectie, date)
+    return send_file(strIO,
+                     attachment_filename=filename,
+                     as_attachment=True)
+
+# download volledig OHW frame
+@app.server.route('/download_excel1_b')
+def download_excel1_b():
+    preset_selectie = ast.literal_eval(flask.request.args.get('preset'))
+    filter_selectie = ast.literal_eval(flask.request.args.get('filters'))
+    category = 'global'
+    _, _, _, df_table = data_from_DB(preset_selectie, filter_selectie, category)
+
+    # Convert DF
+    strIO = io.BytesIO()
+    excel_writer = pd.ExcelWriter(strIO, engine="xlsxwriter")
+    df_table.to_excel(excel_writer, sheet_name="sheet1", index=False)
+    excel_writer.save()
+    strIO.getvalue()
+    strIO.seek(0)
+
+    # Name download file
+    Filename = "Info_project_all_categories_{}_{}.xlsx".format(
+        filter_selectie, dt.datetime.now().strftime('%d-%m-%Y'))
+    return send_file(strIO,
+                     attachment_filename=Filename,
+                     as_attachment=True)
+
+
+# HELPER FUNCTIES
 @cache.memoize()
-def make_taartdiagram_blazen(df):
-    layout_pie = copy.deepcopy(layout)
-    donut = {}
-    for cat in config.beschrijving_cat_blazen:
-        df_ = df[df[cat[0:4]]]
-        sum_ = -(df_['delta_1'].sum().astype('int64'))
-        if sum_ > 0:
-            donut[cat] = sum_
-    data_graph = [
+def data_from_DB(preset_selectie, filter_selectie, category):
+    if (not preset_selectie == []) & (not filter_selectie == []):
+        db = firestore.Client()
+        d_ref = db.collection('dashboard_blazen')
+
+        keys = []
+        for key1 in preset_selectie:
+            for key2 in filter_selectie:
+                keys += [str('NL' not in preset_selectie) + key1.replace(' ', '_') + key2 + category]
+
+        OHW = None
+        pOHW = None
+        donut = {}
+        df_table = None
+        count = 0
+        docs = d_ref.where('filters', 'in', keys).stream()
+        for doc in docs:
+            doc = doc.to_dict()
+            if count == 0:
+                OHW = pd.read_json(doc['OHW'], orient='records')
+                pOHW = pd.read_json(doc['pOHW'], orient='records')
+                donut = doc['donut']
+                df_table = pd.read_json(doc['df_table'], orient='records')
+            else:
+                OHW['OHW'] = OHW['OHW'] + pd.read_json(doc['OHW'], orient='records')['OHW']
+                pOHW['pOHW'] = pOHW['pOHW'] + pd.read_json(doc['pOHW'], orient='records')['pOHW']
+                if doc['donut'] is not None:
+                    for key in doc['donut']:
+                        if key in donut:
+                            donut[key] = donut[key] + doc['donut'][key]
+                        else:
+                            donut[key] = doc['donut'][key]
+                df_table = df_table.append(pd.read_json(doc['df_table'], orient='records'), sort=True)
+            count += 1
+
+        if category == 'global':
+            df_table = df_table[config.columns_b].sort_values(by=['OHW'])
+        else:
+            col = ['Beschrijving categorie', 'Oplosactie']
+            df_table = df_table[config.columns_b + col].sort_values(by=['OHW'])
+
+    else:
+        OHW = None
+        pOHW = None
+        donut = {}
+        df_table = None
+
+    return OHW, pOHW, donut, df_table
+
+
+def generate_graph(OHW, pOHW, donut, df_table, category):
+
+    data_history_OHW = [
         dict(
-            type="pie",
-            labels=list(donut.keys()),
-            values=list(donut.values()),
-            hoverinfo="percent",
-            textinfo="value",
-            hole=0.5,
-            marker=dict(colors=['#003f5c', '#374c80', '#7a5195',
-                                '#bc5090',  '#ef5675']),
-            domain={"x": [0, 1], "y": [0.30, 1]},
-            sort=False
-        )
+            type="line",
+            x=OHW['Datum'],
+            y=-OHW['OHW'],
+            name="OHW",
+            opacity=0.5,
+            hoverinfo="skip",
+        ),
+        dict(
+            type="line",
+            x=pOHW['Datum'],
+            y=pOHW['pOHW'],
+            name="projecten_OHW",
+            opacity=0.5,
+            hoverinfo="skip",
+            yaxis='y2'
+        ),
     ]
-    layout_pie["title"] = "Categorieen OHW (aantal meters):"
-    layout_pie["clickmode"] = "event+select"
-    layout_pie["font"] = dict(color="#777777")
-    layout_pie["legend"] = dict(
-        font=dict(color="#777777", size="14"),
-        orientation="v",
-        bgcolor="rgba(0,0,0,0)",
-        traceorder='normal',
-        itemclick=True,
-        xanchor='bottom'
-    )
-    layout_pie["showlegend"] = True
-    layout_pie["height"] = 500
-    figure = dict(data=data_graph, layout=layout_pie)
-    return figure
+    layout_OHW = copy.deepcopy(layout)
+    layout_OHW["title"] = category[0:4] + ": OHW (linker y-as) en aantal projecten OHW (rechter y-as) "
+    layout_OHW["dragmode"] = "select"
+    layout_OHW["showlegend"] = True
+    layout_OHW["autosize"] = True
+    layout_OHW["yaxis"] = dict(title='[m]')
+    layout_OHW['yaxis2'] = dict(side='right', overlaying='y')
+    figure_OHW = dict(data=data_history_OHW, layout=layout_OHW)
 
+    if donut is not None:
+        data_pie = [
+            dict(
+                type="pie",
+                labels=list(donut.keys()),
+                values=list(donut.values()),
+                hoverinfo="percent",
+                textinfo="value",
+                hole=0.5,
+                marker=dict(colors=['#003f5c', '#374c80', '#7a5195',
+                                    '#bc5090',  '#ef5675']),
+                domain={"x": [0, 1], "y": [0.30, 1]},
+                sort=False
+            )
+        ]
+        layout_pie = copy.deepcopy(layout)
+        layout_pie["title"] = "Aantal meter OHW per categorie:"
+        layout_pie["clickmode"] = "event+select"
+        layout_pie["font"] = dict(color="#777777")
+        layout_pie["legend"] = dict(
+            font=dict(color="#777777", size="14"),
+            orientation="v",
+            bgcolor="rgba(0,0,0,0)",
+            traceorder='normal',
+            itemclick=True,
+            xanchor='bottom'
+        )
+        layout_pie["showlegend"] = True
+        layout_pie["height"] = 500
+        donut = dict(data=data_pie, layout=layout_pie)
 
-# tabel
-def make_tabel_blazen(df):
-    df.rename(columns={'delta_1': 'OHW'}, inplace=True)
-    df.sort_values('OHW', ascending=True, inplace=True)
-    tabel = dash_table.DataTable(
-        columns=[{"name": i, "id": i} for i in df.columns],
-        data=df.to_dict("rows"),
+    stats = {'0': str(int(pOHW[pOHW['Datum'] == pOHW['Datum'].max()]['pOHW'].to_list()[0])),
+             '1': str(int(-OHW[OHW['Datum'] == max(OHW['Datum'])]['OHW'].to_list()[0])),
+             }
+
+    df_table = dash_table.DataTable(
+        columns=[{"name": i, "id": i} for i in df_table.columns],
+        data=df_table.to_dict("rows"),
         style_table={'overflowX': 'auto'},
         style_header=table_styles['header'],
         style_cell=table_styles['cell']['action'],
@@ -157,35 +591,6 @@ def make_tabel_blazen(df):
             'selector': 'table',
             'rule': 'width: 100%;'
         }],
-    ),
-    return tabel
+    )
 
-
-@cache.memoize()
-def data_from_DB(filter_selectie):
-    db = firestore.Client()
-    p_ref = db.collection('Projecten_blazen')
-
-    def get_dataframe(docs, dataframe):
-        for doc in docs:
-            Pnummer = doc.id
-            doc = doc.to_dict()
-            doc['Pnummer'] = Pnummer
-            dataframe += [doc]
-        return dataframe
-
-    dataframe = []
-    docs = p_ref.where('Afgehecht', '==', 'niet afgehecht').stream()
-    dataframe = get_dataframe(docs, dataframe)
-    if not ('Administratief Afhechting' in filter_selectie):
-        docs = p_ref.where('Afgehecht', '==', 'Administratief Afhechting').stream()
-        dataframe = get_dataframe(docs, dataframe)
-    if not ('Berekening restwerkzaamheden' in filter_selectie):
-        docs = p_ref.where('Afgehecht', '==', 'Berekening restwerkzaamheden').stream()
-        dataframe = get_dataframe(docs, dataframe)
-    if not ('Bis Gereed' in filter_selectie):
-        docs = p_ref.where('Afgehecht', '==', 'Bis Gereed').stream()
-        dataframe = get_dataframe(docs, dataframe)
-    df_wf = pd.DataFrame(dataframe)
-
-    return df_wf
+    return figure_OHW, donut, df_table, stats
