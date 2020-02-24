@@ -5,7 +5,6 @@ import config
 import datetime as dt
 import pandas as pd
 import dash_core_components as dcc
-import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_table
 import ast
@@ -32,9 +31,9 @@ layout = dict(
 def get_body():
     page = html.Div(
         [
-            dcc.Store(id="aggregate_data_h",
+            dcc.Store(id="aggregate_data_l",
                       data={'0': '0', '1': '0', '2': '0'}),
-            dcc.Store(id="aggregate_data2_h",
+            dcc.Store(id="aggregate_data2_l",
                       data={'0': '0', '1': '0', '2': '0'}),
             html.Div(
                 [
@@ -98,7 +97,7 @@ def get_body():
                                             {'label': 'Afgehecht: niet afgehecht',
                                                 'value': 'niet afgehecht'},
                                         ],
-                                        id='checklist_filters_h',
+                                        id='checklist_filters_l',
                                         value=['niet afgehecht'],
                                         multi=True,
                                     ),
@@ -120,7 +119,7 @@ def get_body():
                                             {'label': "Omzetten",
                                                 'value': '000'},
                                         ],
-                                        id='checklist_filters2_h',
+                                        id='checklist_filters2_l',
                                         value=['410.0', '420.0', '430.0'],
                                         multi=True,
                                     ),
@@ -134,23 +133,9 @@ def get_body():
                                     html.P("Excel downloads:"),
                                     html.Button(
                                         html.A(
-                                            'download excel (selected categories)',
-                                            id='download-link_h',
-                                            href="""/download_excel_b?categorie=1
-                                                    &filters=['empty']""",
-                                            style={"color": "white",
-                                                   "text-decoration": "none"}
-                                        ),
-                                        style={"background-color": "#009FDF",
-                                               "margin-bottom": "5px",
-                                               "display": "block"}
-
-                                    ),
-                                    html.Button(
-                                        html.A(
                                             'download excel (all categories)',
-                                            id='download-link1_h',
-                                            href="""/download_excel1_b
+                                            id='download-link1_l',
+                                            href="""/download_excel1_d
                                                     ?filters=['empty']""",
                                             style={"color": "white",
                                                    "text-decoration": "none"}
@@ -178,7 +163,7 @@ def get_body():
                                 style={"margin-top": "0px"}
                             ),
                         ],
-                        id='uitleg_1_h',
+                        id='uitleg_1_l',
                         className="pretty_container_title columns",
                     ),
                 ],
@@ -190,10 +175,18 @@ def get_body():
                         [
                             html.Div(
                                 [
-                                    html.H6(id="info_globaal_0_h"),
+                                    html.H6(id="info_globaal_0_l"),
                                     html.P("Aantal projecten met OHW totaal")
                                 ],
                                 id="info_globaal_container0",
+                                className="pretty_container 3 columns",
+                            ),
+                            html.Div(
+                                [
+                                    html.H6(id="info_globaal_1_l"),
+                                    html.P("Aantal stuks OHW totaal")
+                                ],
+                                id="info_globaal_container1",
                                 className="pretty_container 3 columns",
                             ),
                         ],
@@ -205,68 +198,15 @@ def get_body():
             html.Div(
                 [
                     html.Div(
-                        [
-                            html.H5(
-                                """
-                                Categorisering van de projecten met OHW:
-                                """,
-                                style={"margin-top": "0px"}
-                            ),
-                        ],
-                        id='uitleg_2',
-                        className="pretty_container_title columns",
+                            [dcc.Graph(id="OHW_globaal_graph_l")],
+                            className="pretty_container column",
                     ),
                 ],
+                id="main_graphs",
                 className="container-display",
             ),
             html.Div(
-                [
-                    html.Div(
-                        [
-                            html.Div(
-                                [
-                                    html.H6(id="info_bakje_0_h"),
-                                    html.P("Aantal projecten in categorie")
-
-                                ],
-                                className="pretty_container 3 columns",
-                            ),
-                        ],
-                        id="info-container3",
-                        className="container-display",
-                    ),
-                ],
-            ),
-            html.Div(
-                [
-                    html.Div(
-                        [
-                            dcc.Graph(id="pie_graph_h"),
-                            html.Div(
-                                [
-                                    dbc.Button(
-                                        'Uitleg categorieën',
-                                        id='uitleg_button'
-                                    ),
-                                    html.Div(
-                                        [
-                                            dcc.Markdown(
-                                                config.uitleg_categorie_fiberconnect
-                                            )
-                                        ],
-                                        id='uitleg_collapse',
-                                        hidden=True,
-                                    )
-                                ],
-                            ),
-                        ],
-                        className="pretty_container column",
-                    ),
-                ],
-                className="container-display",
-            ),
-            html.Div(
-                id='status_table_ext_h',
+                id='status_table_ext_l',
                 className="pretty_container",
                 # hidden=True,
             ),
@@ -280,9 +220,9 @@ def get_body():
 # CALBACK FUNCTIONS
 # Informatie button
 @app.callback(
-    Output("uitleg_collapse_h", "hidden"),
-    [Input("uitleg_button_h", "n_clicks")],
-    [State("uitleg_collapse_h", "hidden")],
+    Output("uitleg_collapse_l", "hidden"),
+    [Input("uitleg_button_l", "n_clicks")],
+    [State("uitleg_collapse_l", "hidden")],
 )
 def toggle_collapse(n, is_open):
     if n:
@@ -293,28 +233,30 @@ def toggle_collapse(n, is_open):
 # Info containers
 @app.callback(
     [
-        Output("info_globaal_0_h", "children"),
-        Output("info_bakje_0_h", "children"),
+        Output("info_globaal_0_l", "children"),
+        Output("info_globaal_1_l", "children"),
     ],
     [
-        Input("aggregate_data_h", "data"),
-        Input("aggregate_data2_h", "data")
+        Input("aggregate_data_l", "data"),
+        Input("aggregate_data2_l", "data")
     ],
 )
 def update_text(data1, data2):
     return [
         data1.get('0') + " projecten",
-        data2.get('0') + " projecten",
+        data1.get('1') + " stuks",
     ]
 
 
 # Globale grafieken
 @app.callback(
-    [Output("pie_graph_h", "figure"),
-     Output("aggregate_data_h", "data")
+    [Output("OHW_globaal_graph_l", "figure"),
+     Output("pie_graph_l", "figure"),
+     Output("aggregate_data_l", "data"),
+     Output('status_table_ext_l', 'children')
      ],
-    [Input("checklist_filters_h", 'value'),
-     Input("checklist_filters2_h", 'value')
+    [Input("checklist_filters_l", 'value'),
+     Input("checklist_filters2_l", 'value')
      ]
 )
 def make_global_figures(preset_selectie, filter_selectie):
@@ -327,86 +269,30 @@ def make_global_figures(preset_selectie, filter_selectie):
     if OHW is None:
         raise PreventUpdate
 
-    _, fig_pie, _, stats = generate_graph(OHW, pOHW, donut, df_table, category)
+    fig_OHW, fig_pie, df_table, stats = generate_graph(OHW, pOHW, donut, df_table, category)
 
-    return [fig_pie, stats]
-
-
-@app.callback(
-    [Output('status_table_ext_h', 'children'),
-     Output("aggregate_data2_h", "data")
-     ],
-    [Input("checklist_filters_h", 'value'),
-     Input("pie_graph_h", 'clickData'),
-     Input("checklist_filters2_h", 'value'),
-     ]
-)
-def make_category_figures(preset_selectie, category, filter_selectie):
-    if preset_selectie is None:
-        raise PreventUpdate
-    if category is None:
-        category = config.beschrijving_cat_fiberconnect[0]
-    else:
-        category = category.get('points')[0].get('label')
-    OHW, pOHW, _, df_table = data_from_DB(preset_selectie, filter_selectie, category[0:4])
-    if OHW is None:
-        raise PreventUpdate
-    _, _, table, stats = generate_graph(OHW, pOHW, None, df_table, category)
-
-    return [table, stats]
+    return [fig_OHW, fig_pie, stats, df_table]
 
 
 # DOWNLOAD FUNCTIES
 @app.callback(
-    [Output('download-link_h', 'href'),
-     Output('download-link1_h', 'href'),
+    [Output('download-link1_l', 'href'),
      ],
-    [Input("checklist_filters_h", 'value'),
-     Input('pie_graph_h', 'clickData'),
-     Input("checklist_filters2_h", 'value'),
+    [Input("checklist_filters_l", 'value'),
+     Input("checklist_filters2_l", 'value'),
      ]
 )
-def update_link(preset_selectie, category, filter_selectie):
+def update_link(preset_selectie, filter_selectie):
     if preset_selectie is None:
         raise PreventUpdate
-    if category is None:
-        cat = config.beschrijving_cat_fiberconnect[0]
-    else:
-        cat = category.get('points')[0].get('label')
 
-    return ['''/download_excel_h?categorie={}&preset={}&filters={}'''.format(
-            cat, preset_selectie, filter_selectie),
-            '/download_excel1_h?preset={}&filters={}'.format(preset_selectie, filter_selectie)
+    return ['/download_excel1_l?preset={}&filters={}'.format(preset_selectie, filter_selectie)
             ]
 
-# download categorie
-@app.server.route('/download_excel_h')
-def download_excel_h():
-    category = flask.request.args.get('categorie')
-    preset_selectie = ast.literal_eval(flask.request.args.get('preset'))
-    filter_selectie = ast.literal_eval(flask.request.args.get('filters'))
-
-    _, _, _, df_table = data_from_DB(preset_selectie, filter_selectie, category[0:4])
-
-    # Convert df to excel
-    strIO = io.BytesIO()
-    excel_writer = pd.ExcelWriter(strIO, engine="xlsxwriter")
-    df_table.to_excel(excel_writer, sheet_name="sheet1", index=False)
-    excel_writer.save()
-    strIO.getvalue()
-    strIO.seek(0)
-
-    # Name download file
-    date = dt.datetime.now().strftime('%d-%m-%Y')
-    filename = "Info_project_{}_filters_{}_{}.xlsx".format(
-        category[0:4], filter_selectie, date)
-    return send_file(strIO,
-                     attachment_filename=filename,
-                     as_attachment=True)
 
 # download volledig OHW frame
-@app.server.route('/download_excel1_h')
-def download_excel1_h():
+@app.server.route('/download_excel1_l')
+def download_excel1_l():
     preset_selectie = ast.literal_eval(flask.request.args.get('preset'))
     filter_selectie = ast.literal_eval(flask.request.args.get('filters'))
     category = 'global'
@@ -433,7 +319,7 @@ def download_excel1_h():
 def data_from_DB(preset_selectie, filter_selectie, category):
     if (not preset_selectie == []) & (not filter_selectie == []):
         db = firestore.Client()
-        d_ref = db.collection('dashboard_has')
+        d_ref = db.collection('dashboard_lades')
 
         keys = []
         for key1 in preset_selectie:
@@ -466,10 +352,10 @@ def data_from_DB(preset_selectie, filter_selectie, category):
             count += 1
 
         if category == 'global':
-            df_table = df_table[config.columns_has]
+            df_table = df_table[config.columns_b].sort_values(by=['OHW'])
         else:
-            col = ['Beschrijving categorie']
-            df_table = df_table[config.columns_has + col]
+            col = ['Beschrijving categorie', 'Oplosactie']
+            df_table = df_table[config.columns_b + col].sort_values(by=['OHW'])
 
     else:
         OHW = None
@@ -541,7 +427,8 @@ def generate_graph(OHW, pOHW, donut, df_table, category):
         layout_pie["height"] = 500
         donut = dict(data=data_pie, layout=layout_pie)
 
-    stats = {'0': str(len(df_table)),
+    stats = {'0': str(int(pOHW[pOHW['Datum'] == pOHW['Datum'].max()]['pOHW'].to_list()[0])),
+             '1': str(int(-OHW[OHW['Datum'] == max(OHW['Datum'])]['OHW'].to_list()[0])),
              }
 
     df_table = dash_table.DataTable(
