@@ -1,4 +1,4 @@
-import pathlib
+# import pathlib
 import dash
 import flask
 import config
@@ -8,6 +8,9 @@ import dash_bootstrap_components as dbc
 from google.cloud import kms_v1
 from authentication.azure_auth import AzureOAuth
 from flask_caching import Cache
+
+# PATH = pathlib.Path(__file__).parent
+# DATA_PATH = PATH.joinpath("data").resolve()
 
 # Initiate flask server and dash application
 server = flask.Flask(__name__)
@@ -50,4 +53,3 @@ auth = AzureOAuth(
     config.authentication['role'],
     config.authentication['required_scopes']
 )
-

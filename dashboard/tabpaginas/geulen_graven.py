@@ -9,6 +9,7 @@ import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_table
 import ast
+# import api
 from flask import send_file
 from google.cloud import firestore
 from dash.dependencies import Input, Output, State
@@ -502,6 +503,9 @@ def download_excel2():
     d_ref = db.collection('dashboard_geulen')
     doc1 = d_ref.document('ExtraWerk1').get().to_dict()
     doc2 = d_ref.document('ExtraWerk2').get().to_dict()
+    # doc1 = api.get('/dashboard_geulen/ExtraWerk1')
+    # doc2 = api.get('/dashboard_geulen/ExtraWerk2')
+
     Inkoop = pd.read_json(doc1['df_table1'], orient='records')
     Inkoop = Inkoop.append(pd.read_json(doc2['df_table2'], orient='records')).reset_index(drop=True)
 
