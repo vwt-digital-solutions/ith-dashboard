@@ -9,8 +9,8 @@ import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_table
 import ast
+import api
 from flask import send_file
-from google.cloud import firestore
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 from elements import table_styles
@@ -498,12 +498,12 @@ def download_excel1():
 # download meerwerk excel
 @app.server.route('/download_excel2')
 def download_excel2():
-    db = firestore.Client()
-    d_ref = db.collection('dashboard_geulen')
-    doc1 = d_ref.document('ExtraWerk1').get().to_dict()
-    doc2 = d_ref.document('ExtraWerk2').get().to_dict()
-    Inkoop = pd.read_json(doc1['df_table1'], orient='records')
-    Inkoop = Inkoop.append(pd.read_json(doc2['df_table2'], orient='records')).reset_index(drop=True)
+
+    doc1 = api.get('/dashboard_geulen?id=ExtraWerk1')
+    doc2 = api.get('/dashboard_geulen?id=ExtraWerk2')
+
+    Inkoop = pd.read_json(doc1[0]['df_table1'], orient='records')
+    Inkoop = Inkoop.append(pd.read_json(doc2[0]['df_table2'], orient='records')).reset_index(drop=True)
 
     # Convert DF
     strIO = io.BytesIO()
@@ -525,8 +525,6 @@ def download_excel2():
 @cache.memoize()
 def data_from_DB(preset_selectie, filter_selectie, category):
     if (not preset_selectie == []) & (not filter_selectie == []):
-        db = firestore.Client()
-        d_ref = db.collection('dashboard_geulen')
 
         keys = []
         for key1 in preset_selectie:
@@ -538,9 +536,13 @@ def data_from_DB(preset_selectie, filter_selectie, category):
         donut = {}
         df_table = None
         count = 0
-        docs = d_ref.where('filters', 'in', keys).stream()
+
+        url_s = '/dashboard_geulen?'
+        for f in keys:
+            url_s += 'filters=' + f + '&'
+        docs = api.get(url_s[0:-1])
+
         for doc in docs:
-            doc = doc.to_dict()
             if count == 0:
                 OHW = pd.read_json(doc['OHW'], orient='records')
                 pOHW = pd.read_json(doc['pOHW'], orient='records')

@@ -42,7 +42,6 @@ config_pages = OrderedDict(
 )
 
 
-# NAVBAR
 def get_navbar(huidige_pagina):
 
     for page in config_pages:

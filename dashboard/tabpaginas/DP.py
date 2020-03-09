@@ -8,8 +8,8 @@ import dash_core_components as dcc
 import dash_html_components as html
 import dash_table
 import ast
+import api
 from flask import send_file
-from google.cloud import firestore
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 from elements import table_styles
@@ -318,8 +318,6 @@ def download_excel1_dp():
 @cache.memoize()
 def data_from_DB(preset_selectie, filter_selectie, category):
     if (not preset_selectie == []) & (not filter_selectie == []):
-        db = firestore.Client()
-        d_ref = db.collection('dashboard_dp')
 
         keys = []
         for key1 in preset_selectie:
@@ -331,9 +329,13 @@ def data_from_DB(preset_selectie, filter_selectie, category):
         donut = {}
         df_table = None
         count = 0
-        docs = d_ref.where('filters', 'in', keys).stream()
+
+        url_s = '/dashboard_dp?'
+        for f in keys:
+            url_s += 'filters=' + f + '&'
+        docs = api.get(url_s[0:-1])
+
         for doc in docs:
-            doc = doc.to_dict()
             if count == 0:
                 OHW = pd.read_json(doc['OHW'], orient='records')
                 pOHW = pd.read_json(doc['pOHW'], orient='records')
