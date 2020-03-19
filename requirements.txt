@@ -13,3 +13,4 @@ google-cloud-storage==1.16.1
 google-cloud-firestore==1.6.0
 dash-bootstrap-components==0.6.2
 xlsxwriter==1.1.8
+flask-talisman==0.7.0
