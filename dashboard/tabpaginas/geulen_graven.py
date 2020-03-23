@@ -544,13 +544,15 @@ def data_from_DB(preset_selectie, filter_selectie, category):
 
         for doc in docs:
             if count == 0:
-                OHW = pd.read_json(doc['OHW'], orient='records')
-                pOHW = pd.read_json(doc['pOHW'], orient='records')
+                OHW = pd.read_json(doc['OHW'], orient='records').set_index('Datum')
+                pOHW = pd.read_json(doc['pOHW'], orient='records').set_index('Datum')
                 donut = doc['donut']
                 df_table = pd.read_json(doc['df_table'], orient='records')
             else:
-                OHW['OHW'] = OHW['OHW'] + pd.read_json(doc['OHW'], orient='records')['OHW']
-                pOHW['pOHW'] = pOHW['pOHW'] + pd.read_json(doc['pOHW'], orient='records')['pOHW']
+                OHW1 = pd.read_json(doc['OHW'], orient='records').set_index('Datum')
+                OHW = OHW.add(OHW1, fill_value=0)
+                pOHW1 = pd.read_json(doc['pOHW'], orient='records').set_index('Datum')
+                pOHW = pOHW.add(pOHW1, fill_value=0)
                 if doc['donut'] is not None:
                     for key in doc['donut']:
                         if key in donut:
@@ -564,6 +566,9 @@ def data_from_DB(preset_selectie, filter_selectie, category):
         else:
             col = ['Beschrijving categorie', 'Oplosactie']
             df_table = df_table[config.columns_g + col].sort_values(by=['OHW'])
+
+        OHW = OHW.reset_index()
+        pOHW = pOHW.reset_index()
 
     else:
         OHW = None
