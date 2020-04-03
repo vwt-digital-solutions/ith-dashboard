@@ -447,7 +447,7 @@ def update_link(preset_selectie, category, filter_selectie):
             '/download_excel1?preset={}&filters={}'.format(preset_selectie, filter_selectie)
             ]
 
-# download categorie
+# download geselecteerde categorie
 @app.server.route('/download_excel')
 def download_excel():
     category = flask.request.args.get('categorie')
