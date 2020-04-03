@@ -356,10 +356,10 @@ def data_from_DB(preset_selectie, filter_selectie, category):
             count += 1
 
         if category == 'global':
-            df_table = df_table[config.columns_b].sort_values(by=['OHW'])
+            df_table = df_table[config.columns_l].sort_values(by=['OHW'])
         else:
             col = ['Beschrijving categorie', 'Oplosactie']
-            df_table = df_table[config.columns_b + col].sort_values(by=['OHW'])
+            df_table = df_table[config.columns_l + col].sort_values(by=['OHW'])
 
         OHW = OHW.reset_index()
         pOHW = pOHW.reset_index()
