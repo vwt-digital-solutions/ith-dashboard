@@ -42,9 +42,11 @@ table_styles = {
         'action': table_style_cell_action,
         'conditional': [
             {'if': {'row_index': 'odd'},
-                'backgroundColor': 'rgb(256, 256, 256)'},
+             'backgroundColor': 'rgb(256, 256, 256)'},
             {'if': {'row_index': 'even'},
-                'backgroundColor': 'rgb(240, 240, 240)'},
+             'backgroundColor': 'rgb(240, 240, 240)'},
         ],
     },
 }
+
+logo = "ODH_logo_original.png"
