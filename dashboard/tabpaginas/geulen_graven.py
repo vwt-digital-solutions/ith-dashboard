@@ -15,7 +15,7 @@ from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 from elements import table_styles
 from app import app, cache
-
+# test
 # layout graphs
 layout = dict(
     autosize=True,
