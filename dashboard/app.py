@@ -13,15 +13,18 @@ from flaks_cors import CORS
 
 server = flask.Flask(__name__)
 
+if 'GAE_INSTANCE' in os.environ:
+    SSLify(server, permanent=True)
+
 app = dash.Dash(
     __name__,
     meta_tags=[{"name": "viewport", "content": "width=device-width"}],
     external_stylesheets=[dbc.themes.BOOTSTRAP],
     server=server,
 )
+
 if 'GAE_INSTANCE' in os.environ:
     CORS(app.app, origins=config.ORIGINS)
-    SSLify(server, permanent=True)
 else:
     CORS(app.app)
 
