@@ -12,8 +12,9 @@ import api
 from flask import send_file
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
-from elements import table_styles
+from elements import table_styles, logo
 from app import app, cache
+
 
 # layout graphs
 layout = dict(
@@ -40,7 +41,7 @@ def get_body():
                     html.Div(
                         [
                             html.Img(
-                                src=app.get_asset_url("vqd.png"),
+                                src=app.get_asset_url(logo),
                                 id="vqd-image",
                                 style={
                                     "height": "100px",
