@@ -11,3 +11,4 @@ google-cloud-kms==1.1.0
 dash-bootstrap-components==0.9.1
 xlsxwriter==1.1.8
 Flask-SSLify==0.1.5
+Flask-Cors==3.0.8
