@@ -1,3 +1,5 @@
+[![CodeFactor](https://www.codefactor.io/repository/github/vwt-digital/ith-dashboard/badge)](https://www.codefactor.io/repository/github/vwt-digital/ith-dashboard)
+
 # ITH Dashboard
 
 This is the repository of ITH Dashboard. It contains a Dash dashboard with accompanying files.
