@@ -414,6 +414,7 @@ def update_link(preset_selectie, category, filter_selectie):
             '/download_excel1_b?preset={}&filters={}'.format(preset_selectie, filter_selectie)
             ]
 
+
 # download categorie
 @app.server.route('/download_excel_b')
 def download_excel_b():
@@ -438,6 +439,7 @@ def download_excel_b():
     return send_file(strIO,
                      attachment_filename=filename,
                      as_attachment=True)
+
 
 # download volledig OHW frame
 @app.server.route('/download_excel1_b')

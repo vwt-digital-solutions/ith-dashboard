@@ -65,7 +65,7 @@ def get_body():
                                         style={"margin-top": "0px"}
                                     ),
                                     html.P(),
-                                    html.P("(Laatste nieuwe data: 17-02-2020)")
+                                    html.P("(Laatste nieuwe data: " + api.get('/Hulplijsten?id=update_date')[0]['date'] + ")")
                                 ],
                                 style={"margin-left": "-120px"},
                             )
@@ -447,6 +447,7 @@ def update_link(preset_selectie, category, filter_selectie):
             '/download_excel1?preset={}&filters={}'.format(preset_selectie, filter_selectie)
             ]
 
+
 # download geselecteerde categorie
 @app.server.route('/download_excel')
 def download_excel():
@@ -472,6 +473,7 @@ def download_excel():
                      attachment_filename=filename,
                      as_attachment=True)
 
+
 # download volledig OHW frame
 @app.server.route('/download_excel1')
 def download_excel1():
@@ -494,6 +496,7 @@ def download_excel1():
     return send_file(strIO,
                      attachment_filename=Filename,
                      as_attachment=True)
+
 
 # download meerwerk excel
 @app.server.route('/download_excel2')
