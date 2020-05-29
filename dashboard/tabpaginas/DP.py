@@ -65,7 +65,7 @@ def get_body():
                                         style={"margin-top": "0px"}
                                     ),
                                     html.P(),
-                                    html.P("(Laatste nieuwe data: 17-02-2020)")
+                                    html.P("(Laatste nieuwe data: " + api.get('/Hulplijsten?id=update_date')[0]['date'] + ")")
                                 ],
                                 style={"margin-left": "-120px"},
                             )
