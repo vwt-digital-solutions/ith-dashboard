@@ -64,7 +64,7 @@ def get_body():
                                         style={"margin-top": "0px"}
                                     ),
                                     html.P(),
-                                    html.P("(Laatste nieuwe data: " + api.get('/Hulplijsten?id=update_date')[0]['date'] + ")")
+                                    html.P(id='update_date_l')
                                 ],
                                 style={"margin-left": "-120px"},
                             )
@@ -235,6 +235,7 @@ def toggle_collapse(n, is_open):
     [
         Output("info_globaal_0_l", "children"),
         Output("info_globaal_1_l", "children"),
+        Output("update_date_l", "children"),
     ],
     [
         Input("aggregate_data_l", "data"),
@@ -242,9 +243,14 @@ def toggle_collapse(n, is_open):
     ],
 )
 def update_text(data1, data2):
+    date_u = api.get('/Hulplijsten?id=update_date')[0]['date']
+    if date_u is None:
+        date_u = ' '
+
     return [
         data1.get('0') + " projecten",
         data1.get('1') + " stuks",
+        "(Laatste nieuwe data: " + date_u + ")"
     ]
 
 
