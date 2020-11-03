@@ -9,8 +9,10 @@ from authentication.azure_auth import AzureOAuth
 from flask_caching import Cache
 from flask_sslify import SSLify
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 server = flask.Flask(__name__)
+server.wsgi_app = ProxyFix(server.wsgi_app, x_for=1, x_host=1)
 
 if 'GAE_INSTANCE' in os.environ:
     SSLify(server, permanent=True)
