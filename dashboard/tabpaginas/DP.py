@@ -199,8 +199,8 @@ def get_body():
             html.Div(
                 [
                     html.Div(
-                            [dcc.Graph(id="OHW_globaal_graph_dp")],
-                            className="pretty_container column",
+                        [dcc.Graph(id="OHW_globaal_graph_dp")],
+                        className="pretty_container column",
                     ),
                 ],
                 id="main_graphs",
@@ -322,7 +322,7 @@ def download_excel1_dp():
 
 
 # HELPER FUNCTIES
-@cache.memoize()
+@cache.memoize()  # noqa C901
 def data_from_DB(preset_selectie, filter_selectie, category):
     if (not preset_selectie == []) & (not filter_selectie == []):
 
@@ -420,7 +420,7 @@ def generate_graph(OHW, pOHW, donut, df_table, category):
                 textinfo="value",
                 hole=0.5,
                 marker=dict(colors=['#003f5c', '#374c80', '#7a5195',
-                                    '#bc5090',  '#ef5675']),
+                                    '#bc5090', '#ef5675']),
                 domain={"x": [0, 1], "y": [0.30, 1]},
                 sort=False
             )
